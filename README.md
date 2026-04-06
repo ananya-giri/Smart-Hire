@@ -2,7 +2,7 @@
 
 ![SmartHire UI](https://img.shields.io/badge/CrewAI-Agents-purple?style=for-the-badge) ![Gemini](https://img.shields.io/badge/Google_Gemini-Model-blue?style=for-the-badge) ![Streamlit](https://img.shields.io/badge/Streamlit-UI-red?style=for-the-badge)
 
-SmartHire AI is a next-generation autonomous multi-agent recruitment platform designed to entirely automate the modern HR pipeline. Powered by the Google Gemini API and the CrewAI framework, the platform simulates an entire 9-agent "HR Department-in-a-Box."
+SmartHire AI is a next-generation autonomous multi-agent recruitment platform designed to entirely automate the modern HR pipeline. Powered by the Google Gemini API and the CrewAI framework, the platform simulates an entire 10-agent "HR Department-in-a-Box."
 
 It doesn't just read resumes—it scours the web, prevents AI-based prompt injection forgery, calculates skill graphs mathematically, and actively constructs and dispatches formal job offer emails and calendar events.
 
@@ -21,9 +21,12 @@ Traditional algorithmic filters will reject a candidate applying for a "React" r
 ### 3. Fail-Safe Presenter Mode (API-Resilient Scraping)
 Live scraping tools routinely break during research demonstrations due to unexpected Cloudflare Auth-walls or DuckDuckGo HTTP Rate Limits. SmartHire implements an embedded fallback matrix: if a web scraping Agent is blocked by an API limit, the internal infrastructure automatically intercepts the exception and feeds the LLM an intelligent simulated candidate string, ensuring the multi-agent execution never crashes in production.
 
+### 4. Agentic Real-World Competency Verification
+To bridge the gap between text-based resume claims and real-world engineering competency, the system deploys a **Technical Assessment & Code Auditor Agent**. When the Screening agent completes its parsing, this specialized agent actively scans the candidate's resume for GitHub repository links. Using integrating `github_tool` APIs, it securely audits repository structure, proficiency, and descriptions. It then uses the candidate's skill gaps (Latent Blind Spots) to dynamically generate a personalized adaptive technical interview targeting their exact weaknesses.
+
 ---
 
-## ⚙️ The 9-Agent Cognitive Pipeline
+## ⚙️ The 10-Agent Cognitive Pipeline
 
 This system executes sequentially using autonomous agents, each provided with dedicated python toolsets `(tools/)`:
 
@@ -31,11 +34,12 @@ This system executes sequentially using autonomous agents, each provided with de
 2. 🕵️ **Web Sourcing:** Scrapes actual candidate portfolios off the open Internet.
 3. 🛡️ **Integrity Forensic Analyst:** Defends the system against Prompt Injection hacks.
 4. 🧠 **Technical Screener:** Analyzes the candidate using Neuro-Symbolic Graph Math.
-5. ⚖️ **Bias & Fairness Auditor:** Scrubs the analysis for implicit bias (gender/pedigree).
-6. 📅 **Engagement Coordinator:** Triggers Python SMTP tools to auto-email the outreach and draft Calendar Invites.
-7. 📊 **Analytics Specialist:** Evaluates the conversion throughput of your pipeline.
-8. 💼 **Onboarding Officer:** Assembles and outputs the Official Offer Letter email based on real-time salary benchmarks.
-9. 💡 **Explainable AI Judge:** Compiles the mathematical outputs into a transparent UI dashboard report.
+5. 💻 **Technical Code Auditor:** Verifies competency through autonomous GitHub repository auditing and adaptive blind-spot interview generation.
+6. ⚖️ **Bias & Fairness Auditor:** Scrubs the analysis for implicit bias (gender/pedigree).
+7. 📅 **Engagement Coordinator:** Triggers Python SMTP tools to auto-email the outreach and draft Calendar Invites.
+8. 📊 **Analytics Specialist:** Evaluates the conversion throughput of your pipeline.
+9. 💼 **Onboarding Officer:** Assembles and outputs the Official Offer Letter email based on real-time salary benchmarks.
+10. 💡 **Explainable AI Judge:** Compiles the mathematical outputs into a transparent UI dashboard report.
 
 ---
 
