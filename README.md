@@ -12,8 +12,8 @@ It doesn't just read resumes—it scours the web, prevents AI-based prompt injec
 
 Designed for advanced academic research into Next-Gen HR algorithms, this platform implements features fundamentally missing from modern HR Software architectures. These establish significant novelty for publication:
 
-### 1. Adversarial Defense via CV Integrity Agents
-Candidates now use GenAI to write perfectly keyword-stuffed resumes or embed white-text instructions (Prompt Injections) to bypass standard LLMs. SmartHire solves this by forcing resumes through an isolated **Forensic Auditor Agent**. This agent exclusively hunts for prompt injections, narrative hallucinations, and buzzword-stuffing, generating an *Authenticity Integrity Score* to defend the system downstream.
+### 1. Adversarial Defense & Multimodal Integrity Verification
+Candidates now use GenAI to write perfectly keyword-stuffed resumes or embed white-text instructions (Prompt Injections) to bypass standard LLMs. SmartHire solves this by forcing both resumes and candidate video pitches through an isolated **Forensic Auditor Agent**. This agent hunts for textual prompt injections and narrative hallucinations. Simultaneously, it uses Vision-Language Models (VLMs) to scrutinize video submissions for deepfake avatars, unnatural lip-syncing, and rhythmic eye-tracking indicative of off-screen teleprompter usage (ChatGPT-fed answers), generating an *Authenticity Integrity Score* to defend the system downstream.
 
 ### 2. Neuro-Symbolic Knowledge Graph Matching
 Traditional algorithmic filters will reject a candidate applying for a "React" role if their resume only explicitly says "Next.js." SmartHire bridges this logic failure using a **Neuro-Symbolic System**. When the LLM parses a gap, it queries an algorithmic Python `networkx` Knowledge Graph to calculate the shortest mathematical path between skills. The Semantic Graph passes deterministic clearance back to the Neural Model to intelligently override the keyword gap based on latent proximity.
@@ -32,7 +32,7 @@ This system executes sequentially using autonomous agents, each provided with de
 
 1. 📈 **Market Intelligence:** Evaluates hiring bottlenecks and talent availability.
 2. 🕵️ **Web Sourcing:** Scrapes actual candidate portfolios off the open Internet.
-3. 🛡️ **Integrity Forensic Analyst:** Defends the system against Prompt Injection hacks.
+3. 🛡️ **Integrity Forensic Analyst:** Defends the system against Textual Prompt Injections and Visual Deepfakes/Teleprompters.
 4. 🧠 **Technical Screener:** Analyzes the candidate using Neuro-Symbolic Graph Math.
 5. 💻 **Technical Code Auditor:** Verifies competency through autonomous GitHub repository auditing and adaptive blind-spot interview generation.
 6. ⚖️ **Bias & Fairness Auditor:** Scrubs the analysis for implicit bias (gender/pedigree).
