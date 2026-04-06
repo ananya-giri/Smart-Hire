@@ -12,17 +12,18 @@ The recruitment technology sector has rapidly adopted Machine Learning for resum
 We propose a holistic, autonomous architecture that leverages specialized agents interacting synchronously to emulate a complete human HR department, equipped with forensic defense mechanisms.
 
 ## 2. Multi-Agent Architecture
-The core system is orchestrated via the `CrewAI` framework utilizing an interconnected panel of 9 distinct LLM-driven agents executing sequentially:
+The core system is orchestrated via the `CrewAI` framework utilizing an interconnected panel of 10 distinct LLM-driven agents executing sequentially:
 
 1. **Market Intelligence Analyst**: Predicts talent availability and hiring timelines before sourcing begins.
 2. **Sourcing Specialist**: Employs live web-scraping to discover and parse real-world candidate profiles matching the market requirements.
 3. **CV Integrity & AI-Forgery Detector (Adversarial Defense)**: Audits inbound data for manipulation.
 4. **Technical Screening Agent (Neuro-Symbolic)**: Evaluates the resume using graph theory and NLP score fusion.
-5. **Fair Hiring Auditor**: Assesses the generated score for implicit biases (gender, academic pedigree).
-6. **Candidate Engagement & Scheduling Coordinator**: Hooks into SMTP servers and Calendar protocols to auto-email and block calendars for qualifying candidates.
-7. **Talent Analytics Specialist**: Derives performance metrics (e.g., drop-off rates).
-8. **Offer & Onboarding Specialist**: Simulates offer letters based on market parity.
-9. **Explainable AI Analyst**: Translates mathematical system outputs into a transparent human-readable justification.
+5. **Technical Assessment & Code Auditor Agent**: Verifies competency through autonomous GitHub Code Auditing and Adaptive Blind-Spot Assessment.
+6. **Fair Hiring Auditor**: Assesses the generated score for implicit biases (gender, academic pedigree).
+7. **Candidate Engagement & Scheduling Coordinator**: Hooks into SMTP servers and Calendar protocols to auto-email and block calendars for qualifying candidates.
+8. **Talent Analytics Specialist**: Derives performance metrics (e.g., drop-off rates).
+9. **Offer & Onboarding Specialist**: Simulates offer letters based on market parity.
+10. **Explainable AI Analyst**: Translates mathematical system outputs into a transparent human-readable justification.
 
 ## 3. Key Innovations 
 
@@ -32,6 +33,10 @@ Before candidate data reaches the evaluator, it is forced through the Adversaria
 - **Invisible Stuffing:** Identifiable repeating keyword chains typically obfuscated by candidates in PDF metadata or matched font colors.
 - **GenAI Hallucination:** Evaluating linguistic topology to assign an "Authenticity Score."
 By separating this defense logically from the screening agent, the cognitive load on the LLM remains focused, aggressively reducing false positives.
+
+### 3.2 Neuro-Symbolic Skill Distance Calculation
+To bypass the limitations of strict keyword-matching, the architecture integrates a programmatic Knowledge Graph (KG). 
+When the Technical Screener isolates a requirement (e.g., "React"), it calls upon a custom `semantic_skill_graph_matcher` tool. If the candidate possesses "Next.js" but lacks the explicit "React" keyword, the Knowledge Graph executes a shortest-path algorithm calculating the graph distance (d = 1). If the mathematical distance is below an acceptable threshold, the neural model is instructed to treat the gap as semantically fulfilled. This hybrid (Neuro-Symbolic) approach combines deterministic graph reliability with probabilistic LLM reasoning.
 
 ### 3.3 Agentic Real-World Competency Verification (GitHub Auditing & Adaptive Assessment)
 To bridge the gap between text-based resume claims and real-world engineering competency, the system deploys a **Technical Assessment & Code Auditor Agent**.
