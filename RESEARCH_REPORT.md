@@ -33,13 +33,15 @@ Before candidate data reaches the evaluator, it is forced through the Adversaria
 - **GenAI Hallucination:** Evaluating linguistic topology to assign an "Authenticity Score."
 By separating this defense logically from the screening agent, the cognitive load on the LLM remains focused, aggressively reducing false positives.
 
-### 3.2 Neuro-Symbolic Skill Distance Calculation
-To bypass the limitations of strict keyword-matching, the architecture integrates a programmatic Knowledge Graph (KG). 
-When the Technical Screener isolates a requirement (e.g., "React"), it calls upon a custom `semantic_skill_graph_matcher` tool. If the candidate possesses "Next.js" but lacks the explicit "React" keyword, the Knowledge Graph executes a shortest-path algorithm calculating the graph distance (d = 1). If the mathematical distance is below an acceptable threshold, the neural model is instructed to treat the gap as semantically fulfilled. This hybrid (Neuro-Symbolic) approach combines deterministic graph reliability with probabilistic LLM reasoning.
+### 3.3 Agentic Real-World Competency Verification (GitHub Auditing & Adaptive Assessment)
+To bridge the gap between text-based resume claims and real-world engineering competency, the system deploys a **Technical Assessment & Code Auditor Agent**.
+When the Screening agent completes its parsing, this specialized agent actively scans the candidate's resume for GitHub usernames or repository links. If a profile is found, the agent leverages a custom HTTP `github_tool` to interact with open APIs and autonomously audits their repository structure, language proficiency, and codebase descriptions. 
+Furthermore, it cross-references the candidate's verified skills against the Job Description to calculate the "Latent Blind Spots" (missing requirements). It then utilizes this gap analysis to dynamically generate a highly personalized, 3-question adaptive technical interview specifically designed to test the candidate's weaknesses, effectively creating an automated safeguard against resume exaggeration.
 
 ## 4. End-to-End Automation & Web Scraping Integration
 Beyond evaluation, the model integrates directly into external operations via custom Python tooling:
 - **Web Scraping Tool (`bs4 + requests`)**: Grants the Sourcing agent real-time Internet perception to pull active GitHub repositories, job board postings, and profiles.
+- **GitHub API Integration (`requests`)**: Enables autonomous codebase querying and portfolio validation.
 - **SMTP Communication (`smtplib`)**: Grants the Engagement agent write-access to construct and asynchronously distribute personalized outreach emails.
 - **Calendar Event Integration**: Automatically constructs and distributes `.ics` calendar blocks with embedded meeting links.
 
@@ -56,7 +58,10 @@ graph TD
     
     F <--> |Graph Distance Query| G[(Neuro-Symbolic Knowledge Graph)]
     
-    F --> H(Bias Auditor)
+    F -- Blind Spot Analysis --> X(Technical Assessment Agent)
+    X <--> |Real-world Code Audit| Y[(GitHub API)]
+    X -- Generates Adaptive Interview --> H(Bias Auditor)
+    
     H --> I(Explainable AI Summarizer)
     
     I -- If Pass --> J(Engagement Coordinator)
@@ -67,4 +72,4 @@ graph TD
 ```
 
 ## 6. Conclusion
-This architecture successfully bridges the gap between basic automated resume screening and robust algorithmic hiring. By embedding adversarial defense mechanisms, hr-systems can finally defend against GenAI manipulation. Simultaneously, incorporating structural Knowledge Graphs natively into the LLM Tool-chain drastically improves pipeline accuracy, generating an autonomous, defensible, and accurate "HR Department-in-a-box."
+This architecture successfully bridges the gap between basic automated resume screening and robust algorithmic hiring. By embedding adversarial defense mechanisms and real-world repository auditing, HR systems can finally defend against GenAI manipulation and resume inflation. Simultaneously, incorporating structural Knowledge Graphs natively into the LLM Tool-chain drastically improves pipeline accuracy, generating an autonomous, defensible, and accurate "HR Department-in-a-box" ideal for modern engineering recruitment.

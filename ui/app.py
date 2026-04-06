@@ -70,14 +70,30 @@ hiring_difficulty = "Pending"
 if "last_result" in st.session_state and st.session_state.last_result:
 
     report_text = str(st.session_state.last_result.raw)
+    
+    # AI outputs are often split across multiple tasks, so we combine everything
+    if hasattr(st.session_state.last_result, 'tasks_output'):
+        for t in st.session_state.last_result.tasks_output:
+            report_text += " " + str(t.raw)
 
-    score_match = re.search(r"(\d+)/100", report_text)
-    if score_match:
-        match_score = score_match.group(1) + "%"
+    m1 = re.search(r"score.*?(\d{2,3})/100", report_text, re.IGNORECASE)
+    m2 = re.search(r"(\d{2,3})/100", report_text)
+    m3 = re.search(r"score.*?:\s*(\d{2,3})", report_text, re.IGNORECASE)
+    m4 = re.search(r"fit score.*?(\d{2,3})", report_text, re.IGNORECASE)
 
-    difficulty_match = re.search(r"(Low|Medium|High)", report_text)
-    if difficulty_match:
-        hiring_difficulty = difficulty_match.group(1)
+    if m1: match_score = m1.group(1) + "%"
+    elif m2: match_score = m2.group(1) + "%"
+    elif m3: match_score = m3.group(1) + "%"
+    elif m4: match_score = m4.group(1) + "%"
+
+    # Match difficulty, looking for context around it first
+    diff_match_exact = re.search(r"difficulty.*?:\s*(low|medium|high)", report_text, re.IGNORECASE)
+    if diff_match_exact:
+        hiring_difficulty = diff_match_exact.group(1).capitalize()
+    else:
+        difficulty_match = re.search(r"\b(Low|Medium|High)\b", report_text, re.IGNORECASE)
+        if difficulty_match:
+            hiring_difficulty = difficulty_match.group(1).capitalize()
 
 # --- Metrics Row ---
 metric1, metric2, metric3 = st.columns(3)
@@ -111,7 +127,11 @@ with st.sidebar:
 
     model_choice = st.selectbox(
         "Intelligence Engine",
-        ["Gemini 1.5 Flash", "Gemini 1.5 Pro", "GPT-4o (Coming Soon)"]
+        [
+            "Gemini Flash Lite (Active Pipeline)", 
+            "Gemini 2.0 Flash (Restricted Quota)", 
+            "Gemini 1.5 Pro (Authwall)"
+        ]
     )
 
     anonymize_mode = st.toggle("Strict Anonymization", value=True)
@@ -155,6 +175,8 @@ if app_mode == "🚀 New Analysis":
 
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
         st.subheader("Candidate")
+        
+        candidate_email = st.text_input("Candidate Email Address (for contact)", placeholder="candidate@example.com")
 
         uploaded_resume = st.file_uploader("Upload Resume", type=["pdf"])
         uploaded_video = st.file_uploader("Upload Intro Video (Optional)", type=["mp4", "mov", "avi"])
@@ -175,7 +197,8 @@ if app_mode == "🚀 New Analysis":
 
                     crew_result = run_recruitment_flow(
                         resume_text,
-                        job_desc
+                        job_desc,
+                        candidate_email if candidate_email else "candidate@example.com"
                     )
 
                     st.session_state.last_result = crew_result

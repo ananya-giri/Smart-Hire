@@ -115,6 +115,20 @@ class RecruitmentAgents:
             **AGENT_CONFIG
         )
 
+    def technical_assessment_agent(self):
+        """Generates adaptive blind-spot interview and audits code."""
+        from tools.github_tool import get_github_tool
+        return Agent(
+            role='Technical Assessment & Code Auditor',
+            goal='Audit candidate GitHub repositories and dynamically generate an adaptive blind-spot technical interview.',
+            backstory="""You are a Principal Software Engineer and Technical Interviewer. 
+            You don't trust claims on resumes. You actively look for a GitHub username in the resume and use your analyze_github_profile tool to verify their coding ability. 
+            You also look at the missing skills (blind-spots) identified by the screening agent and dynamically generate a tough, personalized technical take-home test 
+            or interview script explicitly targeting the candidate's weaknesses.""",
+            tools=[get_github_tool()],
+            **AGENT_CONFIG
+        )
+
     def explainability_agent(self):
         """Explains hiring decisions transparently."""
         return Agent(
