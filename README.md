@@ -1,6 +1,6 @@
 # 🚀 SmartHire AI: Autonomous HR & Recruitment Intelligence
 
-![SmartHire UI](https://img.shields.io/badge/CrewAI-Agents-purple?style=for-the-badge) ![Gemini](https://img.shields.io/badge/Google_Gemini-Model-blue?style=for-the-badge) ![Streamlit](https://img.shields.io/badge/Streamlit-UI-red?style=for-the-badge)
+![SmartHire UI](https://img.shields.io/badge/CrewAI-Agents-purple?style=for-the-badge) ![Gemini](https://img.shields.io/badge/Google_Gemini-Model-blue?style=for-the-badge) ![React](https://img.shields.io/badge/React_Vite-Frontend-61DAFB?style=for-the-badge&logo=react) ![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi)
 
 SmartHire AI is a next-generation autonomous multi-agent recruitment platform designed to entirely automate the modern HR pipeline. Powered by the Google Gemini API and the CrewAI framework, the platform simulates an entire 10-agent "HR Department-in-a-Box."
 
@@ -23,6 +23,12 @@ Live scraping tools routinely break during research demonstrations due to unexpe
 
 ### 4. Agentic Real-World Competency Verification
 To bridge the gap between text-based resume claims and real-world engineering competency, the system deploys a **Technical Assessment & Code Auditor Agent**. When the Screening agent completes its parsing, this specialized agent actively scans the candidate's resume for GitHub repository links. Using integrating `github_tool` APIs, it securely audits repository structure, proficiency, and descriptions. It then uses the candidate's skill gaps (Latent Blind Spots) to dynamically generate a personalized adaptive technical interview targeting their exact weaknesses.
+
+### 5. Enterprise Safety Guardrails (Llama Guard 3)
+The architecture intercepts all inbound and outbound NLP traffic using an embedded API layer integrated with Meta's **Llama-Guard-3-8b**. Operating serverless via the Groq API, the system executes sub-millisecond zero-trust validation to detect explicit PII leakage, block off-topic queries (ensuring the HR Agent remains focused), and immediately halt execution if adversarial prompt injections bypass the primary forensic auditor.
+
+### 6. Explainable AI via Game-Theoretic SHAP
+Black-box AI decision-making creates unacceptable compliance risks in HR. SmartHire implements a true "Hybrid Neuro-Symbolic" architecture using SHAP (SHapley Additive exPlanations). Neural LLMs extract structured heuristics from unstructured candidate resumes, dynamically feeding those vectors into a classical sidecar ML model (Random Forest). This hybrid interaction computes literal mathematically-proven Shapley values (feature +/- percentages), guaranteeing mathematically transparent verification for why a candidate was hired.
 
 ---
 
@@ -67,7 +73,15 @@ SMTP_PASSWORD=your_app_password
 CREWAI_DISABLE_TELEMETRY=true
 ```
 
-**4. Launch the Dashboard**
+**4. Launch the FastAPI Backend**
 ```bash
-streamlit run ui/app.py
+.\.venv\Scripts\uvicorn.exe api:app --reload
+```
+
+**5. Launch the React + Vite Frontend UI**
+Open a new terminal in the root directory:
+```bash
+cd frontend
+npm install
+npm run dev
 ```

@@ -116,13 +116,29 @@ def run_recruitment_flow(resume_text, job_description, candidate_email="candidat
         context=[screening_task]
     )
 
-    # 8. Management & Strategic Report
+    # 8. Explainability Task (XAI using SHAP)
+    explainability_task = Task(
+        description=f"""Review the candidate resume: {resume_text} and screening results. 
+        Extract a best-guess estimate for exactly these 4 integer figures: 
+        1) Total Years Experience (0-20)
+        2) Education Tier (1-3 where Ivy League/Top Tier=3, Normal Degree=2, Bootcamp/No Degree=1)
+        3) Technical Skills Match percentage compared to JD (0-100) 
+        4) Number of Past Projects listed (integer).
+        
+        VERY IMPORTANT: Pass those 4 numbers explicitly to your shap_analysis_tool using a comma-separated string (e.g. '4, 2, 85, 5').
+        Use the returned output to generate a mathematically rigorous 'Explainable AI Feature Importance' section validating the hiring decision against potential bias.""",
+        expected_output="An 'Explainable AI Breakdown' component displaying the literal Mathematical SHAP Values (Additive Explanations) proving lack of ML bias.",
+        agent=explainer,
+        context=[screening_task]
+    )
+
+    # 9. Management & Strategic Report
     management_task = Task(
         description="""Review outputs from sourcing, screening, fairness analysis, engagement planning, 
-        market intelligence, analytics, adaptive technical assessment (GitHub Audit), and onboarding recommendations.
+        market intelligence, analytics, adaptive technical assessment (GitHub Audit), onboarding recommendations, and Explainable AI (SHAP) validation.
 
         Synthesize everything into a final 'Strategic Recruitment Dossier' for the HR Director.""",
-        expected_output="A comprehensive final report containing sourcing insights, screening evaluation, GitHub & Blind-spot Assessment, fairness analysis, engagement strategy, hiring analytics, and offer recommendation.",
+        expected_output="A comprehensive final report containing sourcing insights, screening evaluation, GitHub & Blind-spot Assessment, fairness analysis, engagement strategy, SHAP metrics, hiring analytics, and offer recommendation.",
         agent=manager,
         context=[
             sourcing_task,
@@ -132,16 +148,9 @@ def run_recruitment_flow(resume_text, job_description, candidate_email="candidat
             engagement_task,
             market_task,
             analytics_task,
-            onboarding_task
+            onboarding_task,
+            explainability_task
         ]
-    )
-
-    # 9. Explainability Task
-    explainability_task = Task(
-        description="Explain clearly why the candidate is recommended or rejected based on screening results.",
-        expected_output="Transparent explanation including skill mismatch, experience gap, and hiring reasoning.",
-        agent=explainer,
-        context=[screening_task]
     )
 
     # Create Crew
@@ -169,8 +178,8 @@ def run_recruitment_flow(resume_text, job_description, candidate_email="candidat
             engagement_task,
             analytics_task,
             onboarding_task,
-            management_task,
-            explainability_task
+            explainability_task,
+            management_task
         ],
         process=Process.sequential,
         verbose=True,

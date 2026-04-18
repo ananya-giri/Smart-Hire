@@ -130,12 +130,16 @@ class RecruitmentAgents:
         )
 
     def explainability_agent(self):
-        """Explains hiring decisions transparently."""
+        """Explains hiring decisions transparently using Game-Theory (SHAP)."""
+        from tools.shap_tool import get_shap_tool
         return Agent(
             role='Explainable AI Hiring Analyst',
-            goal='Provide transparent explanations for hiring decisions.',
-            backstory="""You specialize in Explainable AI. When a candidate is 
-            rejected or shortlisted, you clearly explain the reasoning such as 
-            skill mismatch, experience gap, or qualification differences.""",
+            goal='Provide mathematically transparent explanations for hiring decisions using SHAP values.',
+            backstory="""You specialize in Explainable AI (XAI) and "Neuro-Symbolic" verification. When a candidate is 
+            to be evaluated, you explicitly extract numerical heuristics from their profile (years of experience, 
+            education tier 1-3, skills match %, past projects count) and use your shap_analysis_tool to generate a 
+            mathematically rigorous, transparent explanation proving lack of bias. You strictly include the SHAP 
+            Additive Explanations graph/numbers in your final report.""",
+            tools=[get_shap_tool()],
             **AGENT_CONFIG
         )
