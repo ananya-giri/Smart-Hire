@@ -6,6 +6,10 @@ SmartHire AI is a next-generation autonomous multi-agent recruitment platform de
 
 It doesn't just read resumes—it scours the web, prevents AI-based prompt injection forgery, calculates skill graphs mathematically, and actively constructs and dispatches formal job offer emails and calendar events.
 
+**🌍 Live Project Demos:**
+* **Frontend (React UI):** [https://smart-hire-orpin.vercel.app/](https://smart-hire-orpin.vercel.app/)
+* **Backend API & Docs:** [https://smart-hire-1-r5o4.onrender.com/docs](https://smart-hire-1-r5o4.onrender.com/docs)
+
 ---
 
 ## 🔬 Research Innovations
