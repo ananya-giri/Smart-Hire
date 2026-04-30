@@ -42,7 +42,7 @@ export default function App() {
       formData.append('email', candidateEmail || 'candidate@example.com');
       formData.append('resume', resumeFile);
 
-      const response = await fetch('http://localhost:8000/analyze', {
+      const response = await fetch('https://smart-hire-1-r5o4.onrender.com/analyze', {
         method: 'POST',
         body: formData,
       });
@@ -68,7 +68,7 @@ export default function App() {
     setChatInput('');
     
     try {
-      const response = await fetch('http://localhost:8000/chat', {
+      const response = await fetch('https://smart-hire-1-r5o4.onrender.com/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: chatInput, context: reportData })
