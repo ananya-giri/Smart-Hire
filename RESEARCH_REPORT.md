@@ -63,7 +63,13 @@ Beyond evaluation, the model integrates directly into external operations via cu
 - **SMTP Communication (`smtplib`)**: Grants the Engagement agent write-access to construct and asynchronously distribute personalized outreach emails.
 - **Calendar Event Integration**: Automatically constructs and distributes `.ics` calendar blocks with embedded meeting links.
 
-## 5. Workflow Diagram
+## 5. Deployment & Containerization Architecture
+To ensure enterprise-grade reliability, portability, and zero-configuration deployment, SmartHire utilizes a multi-stage Dockerized architecture:
+- **FastAPI Backend (Python 3.11-slim)**: Containerized to ensure identical environment consistency for complex ML libraries (`chromadb`, `crewai`, `shap`).
+- **React/Vite Frontend (Node 22 + Nginx)**: Utilizes a high-efficiency multi-stage build process. The application is compiled via Node.js and subsequently served as static assets through a lightweight Alpine Nginx server, drastically reducing memory overhead.
+- **Docker Compose Orchestration**: Both microservices are bridged over a unified Docker network, mapping port 80 for the UI and 8000 for the secure API, effectively rendering the product universally deployable across any cloud vendor (AWS, Render, Vercel) without host-machine dependency conflicts.
+
+## 6. Workflow Diagram
 
 ```mermaid
 graph TD
@@ -99,5 +105,5 @@ graph TD
     API --> |Llama Guard 3 Validation| V
 ```
 
-## 6. Conclusion
+## 7. Conclusion
 This architecture successfully bridges the gap between basic automated resume screening and robust algorithmic hiring. By embedding adversarial defense mechanisms and real-world repository auditing, HR systems can finally defend against GenAI manipulation and resume inflation. Simultaneously, incorporating structural Knowledge Graphs natively into the LLM Tool-chain drastically improves pipeline accuracy, generating an autonomous, defensible, and accurate "HR Department-in-a-box" ideal for modern engineering recruitment.

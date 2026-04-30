@@ -57,14 +57,7 @@ git clone https://github.com/ananya-giri/Smart-Hire.git
 cd Smart-Hire/genai2
 ```
 
-**2. Initialize your Environment**
-```bash
-python -m venv .venv
-.\.venv\Scripts\activate 
-pip install -r requirements.txt
-```
-
-**3. Configure Environment Protocol**
+**2. Configure Environment Protocol**
 Create a `.env` file in the root directory:
 ```env
 GOOGLE_API_KEY=your_gemini_api_key_here
@@ -73,15 +66,11 @@ SMTP_PASSWORD=your_app_password
 CREWAI_DISABLE_TELEMETRY=true
 ```
 
-**4. Launch the FastAPI Backend**
+**3. Launch the Application (Docker)**
+The entire application is containerized using Docker for a seamless production-ready setup.
 ```bash
-.\.venv\Scripts\uvicorn.exe api:app --reload
+docker-compose up -d --build
 ```
-
-**5. Launch the React + Vite Frontend UI**
-Open a new terminal in the root directory:
-```bash
-cd frontend
-npm install
-npm run dev
-```
+- **Frontend (React UI)**: `http://localhost`
+- **Backend (FastAPI)**: `http://localhost:8000`
+- **API Documentation**: `http://localhost:8000/docs`
