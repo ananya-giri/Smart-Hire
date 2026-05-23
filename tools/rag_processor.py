@@ -75,4 +75,31 @@ class ResumeVault:
 
 
 # Global instance
+# Global instance
 vault = ResumeVault()
+
+
+from crewai.tools import tool
+
+@tool("search_resume_vault")
+def search_resume_vault(query: str) -> str:
+    """Useful to search the internal database (Resume Vault) for existing resumes and candidate profiles
+    matching a job description or set of skills. Returns top matching candidates and their details."""
+    try:
+        results = vault.search_similar_resumes(query, n_results=3)
+        if not results or not results.get('documents') or not results['documents'][0]:
+            return "No candidates found in the Resume Vault matching this query."
+        
+        output = "--- TOP MATCHING CANDIDATES FROM RESUME VAULT ---\n"
+        for i in range(len(results['documents'][0])):
+            doc = results['documents'][0][i]
+            meta = results['metadatas'][0][i] if results.get('metadatas') else {}
+            cand_id = results['ids'][0][i]
+            
+            output += f"Candidate ID: {cand_id}\n"
+            output += f"Name/Email: {meta.get('email', 'Unknown')}\n"
+            output += f"Resume Content:\n{doc}\n"
+            output += "-" * 40 + "\n"
+        return output
+    except Exception as e:
+        return f"Error searching the Resume Vault: {str(e)}"

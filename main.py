@@ -44,10 +44,10 @@ async def run_recruitment_flow(resume_text, job_description, candidate_email="ca
         agent=market_predictor
     )
 
-    # 2. Sourcing Task (Web Scraping Candidates)
+    # 2. Sourcing Task (Vault Database Search)
     sourcing_task = Task(
-        description=f"Using the market metrics from market_task, perform an internet_search to find 3 real potential candidate profiles or portfolios. Then use the scrape_website tool to web scrap details about those 3 potential candidates matching this JD: {job_description}.",
-        expected_output="A display of 3 real potential candidate profiles with actual web-scraped details and their URLs.",
+        description=f"Using the market metrics from market_task, query the internal Resume Vault using the search_resume_vault tool to find the 3 best-matching candidate profiles that fit this JD: {job_description}.",
+        expected_output="A display of the 3 best-matching candidate profiles retrieved from the internal Resume Vault with their details and candidate IDs.",
         agent=sourcer,
         context=[market_task]
     )

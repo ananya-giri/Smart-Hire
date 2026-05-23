@@ -15,16 +15,16 @@ class RecruitmentAgents:
         )
 
     def sourcing_agent(self):
-        """Crawls job platforms and internal databases."""
-        from tools.search_tool import get_search_tool
-        from tools.scrape_tool import get_scrape_tool
+        """Searches the internal Resume Vault for best-matching candidate profiles."""
+        from tools.rag_processor import search_resume_vault
         return Agent(
             role='Sourcing Specialist',
-            goal='Identify and extract top talent from job platforms and internal databases and then web scrap their details to analyze.',
-            backstory="""You are a master of Boolean search and web scraping. 
-            You find hidden gems across LinkedIn, GitHub, and internal talent pools. 
-            You use your internet_search tool to find links, and then use your scrape_website tool to read the details on those links to build a robust candidate pipeline.""",
-            tools=[get_search_tool(), get_scrape_tool()],
+            goal='Search and identify the best suitable candidates from the internal Resume Vault matching a given job description.',
+            backstory="""You are a master of internal talent acquisition and database retrieval. 
+            Instead of scraping the web for random candidates, you leverage the company's internal Resume Vault 
+            using the search_resume_vault tool to query and retrieve the top-matching resumes that fit the job description, 
+            building a highly qualified candidate pipeline from our existing database.""",
+            tools=[search_resume_vault],
             **AGENT_CONFIG
         )
 

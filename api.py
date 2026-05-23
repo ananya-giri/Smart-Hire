@@ -58,6 +58,16 @@ async def analyze_candidate(
         safe_resume_text = AIHiringGuardrails.redact_pii(resume_text)
         # -------------------------
         
+        # Save current candidate to RAG Resume Vault so they are part of the searchable talent pool
+        import time
+        candidate_metadata = {
+            "source": resume.filename,
+            "email": email if email else "candidate@example.com",
+            "timestamp": time.time(),
+            "role": job_desc_text[:50]
+        }
+        save_to_vault(resume_text, candidate_metadata)
+        
         # Run CrewAI flow
         crew_result = await run_recruitment_flow(
             safe_resume_text,
