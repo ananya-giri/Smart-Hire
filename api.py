@@ -23,7 +23,7 @@ class ChatMessage(BaseModel):
     context: str
 
 @app.post("/analyze")
-async def analyze_candidate(
+def analyze_candidate(
     job_desc: UploadFile = File(...),
     email: str = Form(...),
     resume: UploadFile = File(...)
@@ -79,7 +79,7 @@ async def get_vault():
     return get_all_vault_resumes()
 
 @app.post("/chat")
-async def chat_with_hr_assistant(chat_msg: ChatMessage):
+def chat_with_hr_assistant(chat_msg: ChatMessage):
     try:
         # --- OUTPUT/TOPIC GUARDRAIL ---
         AIHiringGuardrails.enforce_hr_topic(chat_msg.message)
