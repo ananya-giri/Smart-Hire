@@ -14,3 +14,5 @@ boto3
 networkx
 beautifulsoup4
 requests
+scikit-learn
+shap
