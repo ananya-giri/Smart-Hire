@@ -4,7 +4,7 @@ from agents.recruitment_agents import RecruitmentAgents
 import time
 
 
-def run_recruitment_flow(resume_text, job_description, candidate_email="candidate@example.com", video_path=None):
+async def run_recruitment_flow(resume_text, job_description, candidate_email="candidate@example.com", video_path=None):
     """
     EXTENDED MULTI-AGENT RECRUITMENT FLOW
     Includes fairness, analytics, market intelligence,
@@ -187,7 +187,7 @@ def run_recruitment_flow(resume_text, job_description, candidate_email="candidat
     )
 
     # Execute
-    return recruitment_crew.kickoff()
+    return await recruitment_crew.akickoff()
 
 
 def save_to_vault(resume_text, metadata):

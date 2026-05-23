@@ -23,7 +23,7 @@ class ChatMessage(BaseModel):
     context: str
 
 @app.post("/analyze")
-def analyze_candidate(
+async def analyze_candidate(
     job_desc: UploadFile = File(...),
     email: str = Form(...),
     resume: UploadFile = File(...)
@@ -59,7 +59,7 @@ def analyze_candidate(
         # -------------------------
         
         # Run CrewAI flow
-        crew_result = run_recruitment_flow(
+        crew_result = await run_recruitment_flow(
             safe_resume_text,
             job_desc_text,
             email if email else "candidate@example.com"
@@ -79,7 +79,7 @@ async def get_vault():
     return get_all_vault_resumes()
 
 @app.post("/chat")
-def chat_with_hr_assistant(chat_msg: ChatMessage):
+async def chat_with_hr_assistant(chat_msg: ChatMessage):
     try:
         # --- OUTPUT/TOPIC GUARDRAIL ---
         AIHiringGuardrails.enforce_hr_topic(chat_msg.message)
