@@ -29,8 +29,67 @@ export default function App() {
   ]);
   const [chatInput, setChatInput] = useState('');
 
+  const [vaultResumes, setVaultResumes] = useState([]);
+  const [isLoadingVault, setIsLoadingVault] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSavingToVault, setIsSavingToVault] = useState(false);
+
   const fileInputRef = useRef(null);
   const jdFileInputRef = useRef(null);
+
+  const loadVault = async () => {
+    setIsLoadingVault(true);
+    try {
+      const response = await fetch('https://smart-hire-1-r5o4.onrender.com/vault');
+      const data = await response.json();
+      if (data && data.ids) {
+        const list = data.ids.map((id, index) => ({
+          id,
+          document: data.documents[index],
+          metadata: data.metadatas ? data.metadatas[index] : {}
+        }));
+        setVaultResumes(list);
+      }
+    } catch (e) {
+      console.error("Failed to load vault:", e);
+    } finally {
+      setIsLoadingVault(false);
+    }
+  };
+
+  const handleSaveToVault = async () => {
+    if (!reportData) return alert("No dossier report available to save!");
+    setIsSavingToVault(true);
+    try {
+      const response = await fetch('https://smart-hire-1-r5o4.onrender.com/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          content: reportData, 
+          email: candidateEmail || 'candidate@example.com',
+          role: jobDescFile ? jobDescFile.name : 'Selected Role'
+        })
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        alert("Successfully saved strategic candidate dossier to the Resume Vault!");
+        loadVault();
+      } else {
+        alert("Error saving to vault: " + data.message);
+      }
+    } catch (e) {
+      alert("Failed to connect to API");
+    } finally {
+      setIsSavingToVault(false);
+    }
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'vault') {
+      loadVault();
+    }
+  };
 
   const handleProcess = async () => {
     if (!jobDescFile || !resumeFile) return alert("Please provide both a Job Description file and a Resume");
@@ -104,21 +163,21 @@ export default function App() {
         <nav style={{ flex: 1 }}>
           <div 
             className={`nav-item ${activeTab === 'analysis' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analysis')}
+            onClick={() => handleTabChange('analysis')}
           >
             <Rocket size={20} />
             New Analysis
           </div>
           <div 
             className={`nav-item ${activeTab === 'vault' ? 'active' : ''}`}
-            onClick={() => setActiveTab('vault')}
+            onClick={() => handleTabChange('vault')}
           >
             <Archive size={20} />
             Resume Vault
           </div>
           <div 
             className={`nav-item ${activeTab === 'assistant' ? 'active' : ''}`}
-            onClick={() => setActiveTab('assistant')}
+            onClick={() => handleTabChange('assistant')}
           >
             <MessageSquare size={20} />
             HR Assistant
@@ -306,11 +365,22 @@ export default function App() {
                         <ReactMarkdown>{reportData}</ReactMarkdown>
                       </div>
                       <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                        <button className="glass-button">
+                        <button className="glass-button" onClick={() => {
+                          const blob = new Blob([reportData], { type: 'text/markdown' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `Strategic_Dossier_${candidateEmail || 'Candidate'}.md`;
+                          a.click();
+                        }}>
                           <Download size={18} /> Download Dossier
                         </button>
-                        <button className="glass-button outline">
-                          <Save size={18} /> Save to Vault
+                        <button 
+                          className="glass-button outline"
+                          onClick={handleSaveToVault}
+                          disabled={isSavingToVault}
+                        >
+                          <Save size={18} /> {isSavingToVault ? 'Saving...' : 'Save to Vault'}
                         </button>
                       </div>
                     </motion.div>
@@ -324,16 +394,78 @@ export default function App() {
                 <h3 style={{ marginTop: 0, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Archive size={20} /> Talent Archive
                 </h3>
-                <input 
-                  type="text" 
-                  className="glass-input" 
-                  placeholder="🔍 Search vault by skills, role, or ID..."
-                  style={{ marginBottom: '2rem' }}
-                />
-                <div style={{ textAlign: 'center', opacity: 0.5, marginTop: '4rem' }}>
-                  <Archive size={48} style={{ marginBottom: '1rem' }} />
-                  <p>Check FastAPI backend for Vault endpoints.</p>
+                
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+                  <input 
+                    type="text" 
+                    className="glass-input" 
+                    placeholder="🔍 Search vault by skills, email, or ID..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <button className="glass-button" onClick={loadVault} disabled={isLoadingVault} style={{ whiteSpace: 'nowrap' }}>
+                    Refresh List
+                  </button>
                 </div>
+
+                {isLoadingVault ? (
+                  <div style={{ textAlign: 'center', marginTop: '4rem', opacity: 0.7 }}>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                      style={{ display: 'inline-block', marginBottom: '1rem' }}
+                    >
+                      <BrainCircuit size={32} />
+                    </motion.div>
+                    <p>Loading database archive...</p>
+                  </div>
+                ) : (
+                  <div className="vault-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '500px', overflowY: 'auto' }}>
+                    {vaultResumes.filter(item => {
+                      const q = searchQuery.toLowerCase();
+                      return (
+                        item.id.toLowerCase().includes(q) ||
+                        (item.document && item.document.toLowerCase().includes(q)) ||
+                        (item.metadata.email && item.metadata.email.toLowerCase().includes(q)) ||
+                        (item.metadata.role && item.metadata.role.toLowerCase().includes(q))
+                      );
+                    }).length === 0 ? (
+                      <div style={{ textAlign: 'center', opacity: 0.5, marginTop: '4rem' }}>
+                        <Archive size={48} style={{ marginBottom: '1rem' }} />
+                        <p>No candidates found in the database vault.</p>
+                      </div>
+                    ) : (
+                      vaultResumes.filter(item => {
+                        const q = searchQuery.toLowerCase();
+                        return (
+                          item.id.toLowerCase().includes(q) ||
+                          (item.document && item.document.toLowerCase().includes(q)) ||
+                          (item.metadata.email && item.metadata.email.toLowerCase().includes(q)) ||
+                          (item.metadata.role && item.metadata.role.toLowerCase().includes(q))
+                        );
+                      }).map((item) => (
+                        <div key={item.id} className="glass-card" style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h4 style={{ margin: 0, color: '#ffb3c6' }}>ID: {item.id}</h4>
+                            <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>
+                              {item.metadata.timestamp ? new Date(item.metadata.timestamp * 1000).toLocaleDateString() : 'Archive'}
+                            </span>
+                          </div>
+                          <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem' }}><strong>Email:</strong> {item.metadata.email || 'Unknown'}</p>
+                          {item.metadata.role && (
+                            <p style={{ margin: '0 0 1rem 0', fontSize: '0.95rem' }}><strong>Source/Role:</strong> {item.metadata.role}</p>
+                          )}
+                          <details style={{ cursor: 'pointer' }}>
+                            <summary style={{ fontSize: '0.9rem', color: '#ffb3c6', outline: 'none' }}>View Resume Details</summary>
+                            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.8rem', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', marginTop: '0.5rem', maxHeight: '150px', overflowY: 'auto', color: '#f5d5e0', fontFamily: 'monospace' }}>
+                              {item.document}
+                            </pre>
+                          </details>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

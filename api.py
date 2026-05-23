@@ -84,6 +84,26 @@ async def analyze_candidate(
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+class VaultDocument(BaseModel):
+    content: str
+    email: str
+    role: str
+
+@app.post("/vault")
+def add_document_to_vault(doc: VaultDocument):
+    try:
+        import time
+        metadata = {
+            "source": "Screening Dossier",
+            "email": doc.email,
+            "timestamp": time.time(),
+            "role": doc.role
+        }
+        cand_id = save_to_vault(doc.content, metadata)
+        return {"status": "success", "candidate_id": cand_id}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.get("/vault")
 async def get_vault():
     return get_all_vault_resumes()
