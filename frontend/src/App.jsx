@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://smart-hire-1-r5o4.onrender.com';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('analysis');
   const [isStrictAnonymization, setIsStrictAnonymization] = useState(true);
@@ -40,7 +42,7 @@ export default function App() {
   const loadVault = async () => {
     setIsLoadingVault(true);
     try {
-      const response = await fetch('https://smart-hire-1-r5o4.onrender.com/vault');
+      const response = await fetch(`${API_BASE_URL}/vault`);
       const data = await response.json();
       if (data && data.ids) {
         const list = data.ids.map((id, index) => ({
@@ -61,7 +63,7 @@ export default function App() {
     if (!reportData) return alert("No dossier report available to save!");
     setIsSavingToVault(true);
     try {
-      const response = await fetch('https://smart-hire-1-r5o4.onrender.com/vault', {
+      const response = await fetch(`${API_BASE_URL}/vault`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -101,7 +103,7 @@ export default function App() {
       formData.append('email', candidateEmail || 'candidate@example.com');
       formData.append('resume', resumeFile);
 
-      const response = await fetch('https://smart-hire-1-r5o4.onrender.com/analyze', {
+      const response = await fetch(`${API_BASE_URL}/analyze`, {
         method: 'POST',
         body: formData,
       });
@@ -127,7 +129,7 @@ export default function App() {
     setChatInput('');
     
     try {
-      const response = await fetch('https://smart-hire-1-r5o4.onrender.com/chat', {
+      const response = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: chatInput, context: reportData })

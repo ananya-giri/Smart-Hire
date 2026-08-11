@@ -1,14 +1,21 @@
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
 import os
 import shutil
+import uuid
+import time
+import asyncio
 from main import run_recruitment_flow, save_to_vault, search_vault, get_all_vault_resumes
 from tools.pdf_processor import extract_text_from_pdf
 from security_guardrails import AIHiringGuardrails
 
-app = FastAPI(title="Smart Hire API")
+app = FastAPI(
+    title="Smart Hire Enterprise API",
+    description="High-Throughput Parallel Multi-Agent AI Recruitment Platform",
+    version="2.0.0"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,81 +25,166 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# In-Memory Job Store for Async Scalability & Task Tracking
+JOBS_STORE: Dict[str, Dict[str, Any]] = {}
+
 class ChatMessage(BaseModel):
     message: str
     context: str
-
-@app.post("/analyze")
-async def analyze_candidate(
-    job_desc: UploadFile = File(...),
-    email: str = Form(...),
-    resume: UploadFile = File(...)
-):
-    try:
-        temp_file = f"temp_{resume.filename}"
-        with open(temp_file, "wb") as buffer:
-            shutil.copyfileobj(resume.file, buffer)
-            
-        resume_text = extract_text_from_pdf(temp_file)
-        
-        # Calculate Job Description
-        temp_jd_file = f"temp_{job_desc.filename}"
-        with open(temp_jd_file, "wb") as buffer:
-            shutil.copyfileobj(job_desc.file, buffer)
-            
-        if temp_jd_file.lower().endswith('.pdf'):
-            job_desc_text = extract_text_from_pdf(temp_jd_file)
-        else:
-            with open(temp_jd_file, "r", encoding="utf-8") as f:
-                job_desc_text = f.read()
-        
-        # --- INPUT GUARDRAILS ---
-        # 1. Block adversarial prompt injections from candidates
-        AIHiringGuardrails.detect_prompt_injections(resume_text)
-        AIHiringGuardrails.detect_prompt_injections(job_desc_text)
-        
-        # 2. Meta's Llama Guard 3 check
-        AIHiringGuardrails.llama_guard_check(resume_text)
-        
-        # 3. Privacy Guardrail: Redact PII before sending to external CrewAI agents
-        safe_resume_text = AIHiringGuardrails.redact_pii(resume_text)
-        # -------------------------
-        
-        # Save current candidate to RAG Resume Vault so they are part of the searchable talent pool
-        import time
-        candidate_metadata = {
-            "source": resume.filename,
-            "email": email if email else "candidate@example.com",
-            "timestamp": time.time(),
-            "role": job_desc_text[:50]
-        }
-        save_to_vault(resume_text, candidate_metadata)
-        
-        # Run CrewAI flow
-        crew_result = await run_recruitment_flow(
-            safe_resume_text,
-            job_desc_text,
-            email if email else "candidate@example.com"
-        )
-        
-        if os.path.exists(temp_file):
-            os.remove(temp_file)
-        if os.path.exists(temp_jd_file):
-            os.remove(temp_jd_file)
-        
-        return {"status": "success", "result": crew_result.raw}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 
 class VaultDocument(BaseModel):
     content: str
     email: str
     role: str
 
+@app.get("/health")
+def health_check():
+    """System Design Health & Performance Monitoring Endpoint"""
+    return {
+        "status": "online",
+        "active_jobs_count": sum(1 for j in JOBS_STORE.values() if j.get("status") == "processing"),
+        "completed_jobs_count": sum(1 for j in JOBS_STORE.values() if j.get("status") == "completed"),
+        "timestamp": time.time()
+    }
+
+async def _process_recruitment_job(
+    job_id: str,
+    safe_resume_text: str,
+    job_desc_text: str,
+    candidate_email: str
+):
+    """Background Worker function to execute parallel multi-agent DAG"""
+    start_time = time.time()
+    try:
+        JOBS_STORE[job_id]["status"] = "processing"
+        JOBS_STORE[job_id]["stage"] = "Executing Parallel Multi-Agent Crew (4-Tier DAG)"
+
+        crew_result = await run_recruitment_flow(
+            safe_resume_text,
+            job_desc_text,
+            candidate_email
+        )
+
+        result_raw = crew_result.raw if hasattr(crew_result, 'raw') else str(crew_result)
+        elapsed = round(time.time() - start_time, 2)
+
+        JOBS_STORE[job_id]["status"] = "completed"
+        JOBS_STORE[job_id]["result"] = result_raw
+        JOBS_STORE[job_id]["elapsed_seconds"] = elapsed
+        JOBS_STORE[job_id]["completed_at"] = time.time()
+    except Exception as e:
+        JOBS_STORE[job_id]["status"] = "failed"
+        JOBS_STORE[job_id]["error"] = str(e)
+        JOBS_STORE[job_id]["elapsed_seconds"] = round(time.time() - start_time, 2)
+
+@app.post("/analyze")
+async def analyze_candidate(
+    background_tasks: BackgroundTasks,
+    job_desc: UploadFile = File(...),
+    email: str = Form(...),
+    resume: UploadFile = File(...),
+    async_mode: Optional[bool] = Form(False)
+):
+    try:
+        # Save temp files with unique run IDs to avoid collisions under high concurrency
+        file_uid = uuid.uuid4().hex[:8]
+        temp_resume_path = f"temp_{file_uid}_{resume.filename}"
+        with open(temp_resume_path, "wb") as buffer:
+            shutil.copyfileobj(resume.file, buffer)
+            
+        resume_text = extract_text_from_pdf(temp_resume_path)
+        
+        temp_jd_path = f"temp_{file_uid}_{job_desc.filename}"
+        with open(temp_jd_path, "wb") as buffer:
+            shutil.copyfileobj(job_desc.file, buffer)
+            
+        if temp_jd_path.lower().endswith('.pdf'):
+            job_desc_text = extract_text_from_pdf(temp_jd_path)
+        else:
+            with open(temp_jd_path, "r", encoding="utf-8") as f:
+                job_desc_text = f.read()
+        
+        # --- INPUT GUARDRAILS ---
+        AIHiringGuardrails.detect_prompt_injections(resume_text)
+        AIHiringGuardrails.detect_prompt_injections(job_desc_text)
+        AIHiringGuardrails.llama_guard_check(resume_text)
+        
+        # Privacy Guardrail: Redact PII before sending to agents
+        safe_resume_text = AIHiringGuardrails.redact_pii(resume_text)
+        # -------------------------
+        
+        # Save current candidate to RAG Resume Vault
+        cand_email = email if email else "candidate@example.com"
+        candidate_metadata = {
+            "source": resume.filename,
+            "email": cand_email,
+            "timestamp": time.time(),
+            "role": job_desc_text[:50]
+        }
+        save_to_vault(resume_text, candidate_metadata)
+        
+        # Clean up uploaded temp files
+        if os.path.exists(temp_resume_path):
+            os.remove(temp_resume_path)
+        if os.path.exists(temp_jd_path):
+            os.remove(temp_jd_path)
+
+        # Async Job Creation
+        job_id = f"job_{uuid.uuid4().hex[:12]}"
+        JOBS_STORE[job_id] = {
+            "job_id": job_id,
+            "status": "queued",
+            "created_at": time.time(),
+            "email": cand_email
+        }
+
+        if async_mode:
+            # Non-blocking async response for frontend polling / WebSockets
+            background_tasks.add_task(
+                _process_recruitment_job,
+                job_id,
+                safe_resume_text,
+                job_desc_text,
+                cand_email
+            )
+            return {
+                "status": "queued",
+                "job_id": job_id,
+                "message": "Candidate analysis job queued successfully. Poll /analyze/status/{job_id} for updates."
+            }
+        else:
+            # Synchronous direct wait mode (runs parallel DAG and returns result directly)
+            await _process_recruitment_job(
+                job_id,
+                safe_resume_text,
+                job_desc_text,
+                cand_email
+            )
+            job_data = JOBS_STORE[job_id]
+            if job_data.get("status") == "completed":
+                return {
+                    "status": "success",
+                    "result": job_data["result"],
+                    "elapsed_seconds": job_data.get("elapsed_seconds")
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": job_data.get("error", "Processing failed.")
+                }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/analyze/status/{job_id}")
+def get_job_status(job_id: str):
+    """Poll status for async background jobs"""
+    if job_id not in JOBS_STORE:
+        return {"status": "error", "message": "Job ID not found."}
+    return JOBS_STORE[job_id]
+
 @app.post("/vault")
 def add_document_to_vault(doc: VaultDocument):
     try:
-        import time
         metadata = {
             "source": "Screening Dossier",
             "email": doc.email,

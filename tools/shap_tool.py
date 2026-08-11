@@ -4,6 +4,21 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 import shap
 
+# Global cached model and explainer (trained once at startup for high throughput)
+_NP_RND = np.random.RandomState(42)
+_X_TRAIN = pd.DataFrame({
+    "Years_Experience": _NP_RND.randint(0, 15, 100),
+    "Education_Tier": _NP_RND.randint(1, 4, 100),
+    "Skills_Match": _NP_RND.randint(20, 100, 100),
+    "Past_Projects": _NP_RND.randint(0, 20, 100)
+})
+_Y_TRAIN = ((_X_TRAIN["Years_Experience"] * 2 + _X_TRAIN["Skills_Match"] * 0.5 + _X_TRAIN["Education_Tier"] * 10 + _X_TRAIN["Past_Projects"]) > 70).astype(int)
+
+_SHAP_MODEL = RandomForestClassifier(n_estimators=50, random_state=42)
+_SHAP_MODEL.fit(_X_TRAIN, _Y_TRAIN)
+_SHAP_EXPLAINER = shap.TreeExplainer(_SHAP_MODEL)
+
+
 class SHAPAnalysisTool(BaseTool):
     name: str = "shap_analysis_tool"
     description: str = (
@@ -22,27 +37,12 @@ class SHAPAnalysisTool(BaseTool):
             
             exp, edu, skills, proj = features
             
-            # --- 1. Train a local lightweight ML Model for Hybrid Architecture ---
-            np.random.seed(42)
-            # Create a synthetic base dataset
-            X_train = pd.DataFrame({
-                "Years_Experience": np.random.randint(0, 15, 100),
-                "Education_Tier": np.random.randint(1, 4, 100),
-                "Skills_Match": np.random.randint(20, 100, 100),
-                "Past_Projects": np.random.randint(0, 20, 100)
-            })
-            # Define target variable (1 = Hire, 0 = No Hire)
-            y_train = ((X_train["Years_Experience"] * 2 + X_train["Skills_Match"] * 0.5 + X_train["Education_Tier"] * 10 + X_train["Past_Projects"]) > 70).astype(int)
+            # Use pre-trained cached model and explainer
+            X_candidate = pd.DataFrame([[exp, edu, skills, proj]], columns=_X_TRAIN.columns)
             
-            # Train the Sidecar Model
-            model = RandomForestClassifier(n_estimators=50, random_state=42)
-            model.fit(X_train, y_train)
-            
-            # --- 2. Calculate SHAP Values for the current candidate ---
-            X_candidate = pd.DataFrame([[exp, edu, skills, proj]], columns=X_train.columns)
-            
-            explainer = shap.TreeExplainer(model)
+            explainer = _SHAP_EXPLAINER
             shap_values = explainer.shap_values(X_candidate)
+            model = _SHAP_MODEL
             
             # Probabilities
             prediction_prob = model.predict_proba(X_candidate)[0][1] * 100

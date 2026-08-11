@@ -5,17 +5,39 @@ from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
 from config import GOOGLE_API_KEY
 
 
+import hashlib
+
+_EMBEDDING_CACHE = {}
+
 class GoogleGenAIEmbeddingFunction(EmbeddingFunction):
     def __init__(self, api_key, model_name="models/gemini-embedding-001"):
         self.client = genai.Client(api_key=api_key)
         self.model_name = model_name
 
     def __call__(self, input: Documents) -> Embeddings:
-        response = self.client.models.embed_content(
-            model=self.model_name,
-            contents=input
-        )
-        return [e.values for e in response.embeddings]
+        results = []
+        missing_texts = []
+        missing_indices = []
+
+        for idx, text in enumerate(input):
+            text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
+            if text_hash in _EMBEDDING_CACHE:
+                results.append((idx, _EMBEDDING_CACHE[text_hash]))
+            else:
+                missing_texts.append(text)
+                missing_indices.append((idx, text_hash))
+
+        if missing_texts:
+            response = self.client.models.embed_content(
+                model=self.model_name,
+                contents=missing_texts
+            )
+            for (orig_idx, t_hash), emb in zip(missing_indices, response.embeddings):
+                _EMBEDDING_CACHE[t_hash] = emb.values
+                results.append((orig_idx, emb.values))
+
+        results.sort(key=lambda x: x[0])
+        return [r[1] for r in results]
 
 
 class ResumeVault:

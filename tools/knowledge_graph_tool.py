@@ -36,12 +36,15 @@ def build_tech_graph():
     
     return G
 
+# Singleton graph instance initialized at module load
+_GLOBAL_TECH_GRAPH = build_tech_graph()
+
 @tool("semantic_skill_graph_matcher")
 def semantic_skill_graph_matcher(required_skill: str, candidate_skills_csv: str) -> str:
     """Useful to mathematically measure the distance between a required job skill and a candidate's actual skills using a Neuro-Symbolic Knowledge Graph.
     Pass the required_skill and a comma-separated list of candidate_skills. 
     It returns if there is a latent mathematical semantic connection."""
-    G = build_tech_graph()
+    G = _GLOBAL_TECH_GRAPH
     
     req = required_skill.strip()
     # Attempt basic normalization matching the graph nodes (which are largely capitalized/title case)
