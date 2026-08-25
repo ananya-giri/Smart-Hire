@@ -5,22 +5,33 @@ from crewai.tools import tool
 def analyze_github_profile(github_username: str) -> str:
     """Useful to fetch and analyze a candidate's real public GitHub repositories and programming languages.
     Requires the exact github username. Do not pass full URLs, only the username."""
+    if not github_username or not str(github_username).strip():
+        return "No GitHub username provided."
+
+    clean_user = str(github_username).strip().rstrip('/')
+    # Handle full URLs if passed by LLM (e.g. https://github.com/username)
+    if 'github.com/' in clean_user:
+        clean_user = clean_user.split('github.com/')[-1].split('/')[0]
+    elif '/' in clean_user:
+        clean_user = clean_user.split('/')[-1]
+    if clean_user.startswith('@'):
+        clean_user = clean_user[1:]
+
     try:
-        url = f"https://api.github.com/users/{github_username}/repos?sort=updated&per_page=5"
-        # We use a user-agent to avoid API blocking
+        url = f"https://api.github.com/users/{clean_user}/repos?sort=updated&per_page=5"
         headers = {'User-Agent': 'SmartHire-Recruitment-AI'}
         response = requests.get(url, headers=headers, timeout=10)
         
         if response.status_code == 404:
-            return f"GitHub profile '{github_username}' not found. Candidate may not have public repositories."
+            return f"GitHub profile '{clean_user}' not found. Candidate may not have public repositories."
         if response.status_code != 200:
-            return f"Failed to fetch GitHub profile for '{github_username}'. Status Code: {response.status_code}. Rate limit may be exceeded."
+            return f"Failed to fetch GitHub profile for '{clean_user}'. Status Code: {response.status_code}. Rate limit may be exceeded."
             
         repos = response.json()
-        if not repos:
-            return f"GitHub profile '{github_username}' has no public repositories."
+        if not repos or not isinstance(repos, list):
+            return f"GitHub profile '{clean_user}' has no public repositories."
             
-        analysis = f"GitHub Portfolio Analysis for '{github_username}':\n"
+        analysis = f"GitHub Portfolio Analysis for '{clean_user}':\n"
         for repo in repos:
             name = repo.get("name", "Unknown")
             language = repo.get("language", "Unknown")
@@ -33,7 +44,7 @@ def analyze_github_profile(github_username: str) -> str:
             
         return analysis
     except Exception as e:
-         return f"Error connecting to GitHub API: {str(e)}"
+        return f"Error connecting to GitHub API: {str(e)}"
 
 def get_github_tool():
     return analyze_github_profile

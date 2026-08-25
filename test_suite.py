@@ -40,6 +40,10 @@ class TestSmartHireSuite(unittest.TestCase):
         exact_res = kg._run(required_skill="React", candidate_skills_csv="React, Python")
         self.assertIn("Exact Explicit Match", exact_res)
 
+        # Alias match (k8s -> Kubernetes)
+        alias_res = kg._run(required_skill="k8s", candidate_skills_csv="Docker, Kubernetes")
+        self.assertIn("Exact Explicit Match", alias_res)
+
         # Latent graph match (Next.js is connected to React)
         latent_res = kg._run(required_skill="Next.js", candidate_skills_csv="React, Node.js")
         self.assertIn("Latent Neuro-Symbolic match", latent_res)
@@ -47,6 +51,10 @@ class TestSmartHireSuite(unittest.TestCase):
         # Gap flag
         gap_res = kg._run(required_skill="Kubernetes", candidate_skills_csv="Vue, Angular")
         self.assertIn("No close semantic connection", gap_res)
+
+        # Defensive empty/None input
+        empty_res = kg._run(required_skill="", candidate_skills_csv="")
+        self.assertIn("Error", empty_res)
 
     def test_04_shap_tool(self):
         from tools.shap_tool import get_shap_tool
