@@ -11,20 +11,19 @@ from crewai import LLM
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 # Set standard keys
 if GOOGLE_API_KEY:
     os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
     os.environ["GEMINI_API_KEY"] = GOOGLE_API_KEY
 
-# We prioritize Groq for its high speeds and generous free tier limit as requested by the user.
-# We default to Gemini because it has a massive free-tier rate limit of 1,000,000 Tokens Per Minute (TPM)
-# which is essential for processing large resumes without hitting Groq's tight 12,000 TPM limit.
-# However, if the user has a Groq paid plan and wishes to use it, they can set USE_GROQ=true in .env.
 USE_GROQ = os.getenv("USE_GROQ", "false").lower() == "true"
 
-if USE_GROQ and GROQ_API_KEY and not any(x in GROQ_API_KEY for x in ["your_groq_api_key_here", "PASTE_YOUR_KEY_HERE"]):
+is_valid_groq = bool(GROQ_API_KEY and not any(x in GROQ_API_KEY for x in ["your_groq_api_key_here", "PASTE_YOUR_KEY_HERE"]))
+is_valid_google = bool(GOOGLE_API_KEY and not any(x in GOOGLE_API_KEY for x in ["your_gemini_api_key_here", "PASTE_YOUR_KEY_HERE"]))
+
+if USE_GROQ and is_valid_groq:
     os.environ["GROQ_API_KEY"] = GROQ_API_KEY
     llm = LLM(
         model="groq/llama-3.3-70b-versatile",
@@ -32,18 +31,21 @@ if USE_GROQ and GROQ_API_KEY and not any(x in GROQ_API_KEY for x in ["your_groq_
         api_key=GROQ_API_KEY
     )
     print("[LLM CONFIG] Smart Hire configured to use Groq LLM (llama-3.3-70b-versatile).")
-else:
-    if not GOOGLE_API_KEY or any(x in GOOGLE_API_KEY for x in ["your_gemini_api_key_here", "PASTE_YOUR_KEY_HERE"]):
-        print("\n[ERROR] GOOGLE_API_KEY not found or is still a placeholder.")
-        print("Please open the '.env' file and configure a valid API key.")
-        sys.exit(1)
-    
+elif is_valid_google:
     llm = LLM(
         model="gemini/gemini-flash-lite-latest",
         temperature=0.4,
         api_key=GOOGLE_API_KEY
     )
     print("[LLM CONFIG] Smart Hire configured to use Gemini LLM (gemini-flash-lite-latest).")
+else:
+    print("\n[WARNING] Valid GOOGLE_API_KEY or GROQ_API_KEY not found in environment/.env.")
+    print("Running with default Gemini Flash configuration. Please provide a valid key before executing live inferences.")
+    llm = LLM(
+        model="gemini/gemini-flash-lite-latest",
+        temperature=0.4,
+        api_key=GOOGLE_API_KEY or "dummy_key_for_initialization"
+    )
 
 # Configuration for CrewAI Agents
 AGENT_CONFIG = {

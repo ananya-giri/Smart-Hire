@@ -193,7 +193,7 @@ async def run_recruitment_flow(resume_text, job_description, candidate_email="ca
     final_out = await crew_t4_manager.akickoff()
     
     elapsed = time.time() - start_time
-    print(f"\n⚡ [PERFORMANCE METRIC] Parallel Multi-Agent Execution Completed in {elapsed:.2f} seconds!")
+    print(f"\n[PERFORMANCE METRIC] Parallel Multi-Agent Execution Completed in {elapsed:.2f} seconds!")
 
     return final_out
 

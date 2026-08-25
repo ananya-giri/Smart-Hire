@@ -2,6 +2,9 @@ crewai
 langchain
 langchain-community
 streamlit
+fastapi
+uvicorn
+python-multipart
 chromadb
 pypdf
 python-dotenv

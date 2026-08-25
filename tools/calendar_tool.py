@@ -6,7 +6,7 @@ def schedule_interview(candidate_email: str, date_time: str, interview_link: str
     Requires the candidate_email, the date_time of the interview, and a meeting interview_link (like a Zoom or Google Meet link)."""
     
     print("\n" + "="*50)
-    print("🗓️   OFFICIAL CALENDAR EVENT CREATED   🗓️")
+    print("[CALENDAR] OFFICIAL CALENDAR EVENT CREATED")
     print(f"Candidate: {candidate_email}")
     print(f"Scheduled Time: {date_time}")
     print(f"Meeting Link: {interview_link}")

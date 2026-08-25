@@ -3,6 +3,8 @@ import os
 import sys
 import time
 import re
+import uuid
+import asyncio
 
 # Disable CrewAI telemetry immediately at startup to avoid thread/signal errors
 os.environ["CREWAI_DISABLE_TELEMETRY"] = "true"
@@ -12,6 +14,29 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from main import run_recruitment_flow, save_to_vault, search_vault, get_all_vault_resumes, clear_vault
 from tools.pdf_processor import extract_text_from_pdf
+
+def run_sync(coro):
+    """Safely execute an async coroutine synchronously inside Streamlit's runtime."""
+    try:
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        if loop.is_running():
+            try:
+                import nest_asyncio
+                nest_asyncio.apply()
+                return loop.run_until_complete(coro)
+            except ImportError:
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    return executor.submit(lambda: asyncio.run(coro)).result()
+        else:
+            return loop.run_until_complete(coro)
+    except Exception:
+        return asyncio.run(coro)
 
 # --- Page Config ---
 st.set_page_config(
@@ -69,12 +94,12 @@ hiring_difficulty = "Pending"
 
 if "last_result" in st.session_state and st.session_state.last_result:
 
-    report_text = str(st.session_state.last_result.raw)
+    report_text = getattr(st.session_state.last_result, 'raw', str(st.session_state.last_result))
     
     # AI outputs are often split across multiple tasks, so we combine everything
-    if hasattr(st.session_state.last_result, 'tasks_output'):
+    if hasattr(st.session_state.last_result, 'tasks_output') and st.session_state.last_result.tasks_output:
         for t in st.session_state.last_result.tasks_output:
-            report_text += " " + str(t.raw)
+            report_text += " " + getattr(t, 'raw', str(t))
 
     m1 = re.search(r"score.*?(\d{2,3})/100", report_text, re.IGNORECASE)
     m2 = re.search(r"(\d{2,3})/100", report_text)
@@ -101,7 +126,7 @@ metric1, metric2, metric3 = st.columns(3)
 vault_data = get_all_vault_resumes()
 candidate_count = 0
 
-if vault_data and "documents" in vault_data:
+if vault_data and "documents" in vault_data and vault_data["documents"]:
     candidate_count = len(vault_data["documents"])
 
 with metric1:
@@ -160,7 +185,7 @@ if app_mode == "🚀 New Analysis":
         jd_path = "data/job_description.md"
 
         if os.path.exists(jd_path):
-            with open(jd_path, "r") as f:
+            with open(jd_path, "r", encoding="utf-8") as f:
                 default_jd = f.read()
 
         job_desc = st.text_area(
@@ -187,26 +212,49 @@ if app_mode == "🚀 New Analysis":
                 st.error("Please provide both a Job Description and a Resume.")
 
             else:
+                file_uid = uuid.uuid4().hex[:8]
+                temp_resume_path = f"temp_{file_uid}_{uploaded_resume.name}"
+                temp_video_path = None
 
                 try:
-
-                    with open("temp_resume.pdf", "wb") as f:
+                    with open(temp_resume_path, "wb") as f:
                         f.write(uploaded_resume.getbuffer())
 
-                    resume_text = extract_text_from_pdf("temp_resume.pdf")
+                    resume_text = extract_text_from_pdf(temp_resume_path)
 
-                    crew_result = run_recruitment_flow(
-                        resume_text,
-                        job_desc,
-                        candidate_email if candidate_email else "candidate@example.com"
-                    )
+                    if uploaded_video:
+                        temp_video_path = f"temp_{file_uid}_{uploaded_video.name}"
+                        with open(temp_video_path, "wb") as vf:
+                            vf.write(uploaded_video.getbuffer())
+
+                    with st.spinner("Executing Parallel Multi-Agent Recruitment Pipeline..."):
+                        crew_result = run_sync(
+                            run_recruitment_flow(
+                                resume_text,
+                                job_desc,
+                                candidate_email if candidate_email else "candidate@example.com",
+                                video_path=temp_video_path
+                            )
+                        )
 
                     st.session_state.last_result = crew_result
                     st.session_state.current_resume_text = resume_text
                     st.session_state.current_filename = uploaded_resume.name
+                    st.success("Analysis completed successfully!")
 
                 except Exception as e:
-                    st.error(str(e))
+                    st.error(f"Execution Error: {str(e)}")
+                finally:
+                    if os.path.exists(temp_resume_path):
+                        try:
+                            os.remove(temp_resume_path)
+                        except Exception:
+                            pass
+                    if temp_video_path and os.path.exists(temp_video_path):
+                        try:
+                            os.remove(temp_video_path)
+                        except Exception:
+                            pass
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -215,7 +263,7 @@ if app_mode == "🚀 New Analysis":
         st.markdown("## 📊 Strategic Recruitment Dossier")
 
         # Expose all intermediate AI agent task outputs (Sourcing, Web Scraping, Market Prediction, etc.)
-        if hasattr(st.session_state.last_result, 'tasks_output'):
+        if hasattr(st.session_state.last_result, 'tasks_output') and st.session_state.last_result.tasks_output:
             st.markdown("### 🛠️ Agent Operations Logs (Web Scraping & Market Data)")
             
             # Map common task indices to names for easier reading (based on your sequential pipeline)
@@ -235,11 +283,11 @@ if app_mode == "🚀 New Analysis":
             for idx, task_out in enumerate(st.session_state.last_result.tasks_output):
                 task_title = task_names[idx] if idx < len(task_names) else f"Task {idx+1}"
                 with st.expander(f"🤖 Agent Task: {task_title}"):
-                    st.markdown(task_out.raw)
+                    st.markdown(getattr(task_out, 'raw', str(task_out)))
 
         st.markdown("### 🏆 Final Analyst Hiring Decision")
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown(st.session_state.last_result.raw)
+        st.markdown(getattr(st.session_state.last_result, 'raw', str(st.session_state.last_result)))
         st.markdown('</div>', unsafe_allow_html=True)
 
         icol1, icol2 = st.columns(2)
@@ -248,7 +296,7 @@ if app_mode == "🚀 New Analysis":
 
             st.download_button(
                 label="📥 Download Intelligence Dossier",
-                data=str(st.session_state.last_result.raw),
+                data=str(getattr(st.session_state.last_result, 'raw', str(st.session_state.last_result))),
                 file_name=f"recruitment_intelligence_{int(time.time())}.md",
                 mime="text/markdown"
             )
@@ -258,12 +306,12 @@ if app_mode == "🚀 New Analysis":
             if st.button("💾 Save Candidate to Vault"):
 
                 import re
-                full_text = str(st.session_state.last_result.raw)
+                full_text = getattr(st.session_state.last_result, 'raw', str(st.session_state.last_result))
                 
                 # AI scores are often stored in intermediate tasks (like Screening), so we must scan everything.
-                if hasattr(st.session_state.last_result, 'tasks_output'):
+                if hasattr(st.session_state.last_result, 'tasks_output') and st.session_state.last_result.tasks_output:
                     for t in st.session_state.last_result.tasks_output:
-                        full_text += " " + str(t.raw)
+                        full_text += " " + getattr(t, 'raw', str(t))
 
                 ai_score = 0
                 # Robust fallback pattern matching for unpredictable GenAI formatting

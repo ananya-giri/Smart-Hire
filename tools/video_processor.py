@@ -1,38 +1,57 @@
 import os
 import time
-from google import genai
 from config import GOOGLE_API_KEY
 
-def analyze_video(video_path, prompt):
+def analyze_video(video_path: str, prompt: str) -> str:
     """
     Uploads a video to Google GenAI File API and analyzes it with a prompt.
     """
-    client = genai.Client(api_key=GOOGLE_API_KEY)
-    
-    print(f"Uploading file: {video_path}...")
-    # Upload the video file
-    video_file = client.files.upload(path=video_path)
-    print(f"Completed upload: {video_file.uri}")
+    if not os.path.exists(video_path):
+        return "Video analysis error: File not found."
 
-    # Wait for the file to be processed
-    while video_file.state.name == "PROCESSING":
-        print('.', end='', flush=True)
-        time.sleep(5)
-        video_file = client.files.get(name=video_file.name)
+    if not GOOGLE_API_KEY or "PASTE_YOUR_KEY_HERE" in GOOGLE_API_KEY:
+        return "Video analysis skipped: Valid GOOGLE_API_KEY required in .env."
 
-    if video_file.state.name == "FAILED":
-        raise ValueError(f"Video processing failed: {video_file.state.name}")
+    try:
+        from google import genai
+        client = genai.Client(api_key=GOOGLE_API_KEY)
+        
+        print(f"Uploading file: {video_path}...")
+        video_file = client.files.upload(path=video_path)
+        print(f"Completed upload: {getattr(video_file, 'uri', 'uploaded')}")
 
-    print("\nAnalyzing video...")
-    # Generate content using the video and prompt
-    response = client.models.generate_content(
-        model="gemini-1.5-flash",
-        contents=[video_file, prompt]
-    )
-    
-    return response.text
+        # Wait for the file to be processed (up to 60 seconds)
+        attempts = 0
+        while attempts < 12:
+            state_str = getattr(video_file.state, 'name', str(video_file.state)).upper()
+            if "PROCESSING" not in state_str:
+                break
+            print('.', end='', flush=True)
+            time.sleep(5)
+            attempts += 1
+            video_file = client.files.get(name=video_file.name)
 
-def deepfake_and_teleprompter_analysis(video_path):
+        state_str = getattr(video_file.state, 'name', str(video_file.state)).upper()
+        if "FAILED" in state_str:
+            raise ValueError(f"Video processing failed: {state_str}")
+
+        print("\nAnalyzing video...")
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[video_file, prompt]
+            )
+        except Exception:
+            response = client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=[video_file, prompt]
+            )
+        
+        return response.text
+    except Exception as e:
+        return f"Video analysis error: {str(e)}"
+
+def deepfake_and_teleprompter_analysis(video_path: str) -> str:
     """
     Acts as a Multimodal Integrity Checker using the vision model to detect 
     candidates reading from ChatGPT off-screen or using deepfake avatars.

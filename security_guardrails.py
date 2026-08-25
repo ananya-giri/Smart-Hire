@@ -1,5 +1,13 @@
 import re
-from fastapi import HTTPException
+
+try:
+    from fastapi import HTTPException
+except ImportError:
+    class HTTPException(Exception):
+        def __init__(self, status_code: int, detail: str):
+            self.status_code = status_code
+            self.detail = detail
+            super().__init__(f"HTTP {status_code}: {detail}")
 
 class AIHiringGuardrails:
     """
@@ -37,7 +45,6 @@ class AIHiringGuardrails:
         Routing/Topic Guardrail: Prevents the HR assistant from being used 
         for non-recruiting purposes (e.g. general coding, poetry, politics).
         """
-        # Very basic heuristic keyword blocklist. In a massive enterprise, we'd use a lightweight classification model.
         out_of_bounds_topics = [
             "write a poem", "code a game", "politics", "recipe", 
             "tell me a joke", "hack", "how to build a bomb"
@@ -57,12 +64,8 @@ class AIHiringGuardrails:
         Privacy Guardrail: Redacts sensitive PII (like phone numbers and SSNs) 
         before sending text to external LLM providers to comply with GDPR/HIPAA.
         """
-        # Redact Phone Numbers (Basic format)
         sanitized = re.sub(r'\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}', '[REDACTED_PHONE]', text)
-        
-        # Redact SSN (Basic format)
         sanitized = re.sub(r'\d{3}-\d{2}-\d{4}', '[REDACTED_SSN]', sanitized)
-        
         return sanitized
 
     @staticmethod
@@ -74,8 +77,7 @@ class AIHiringGuardrails:
         """
         import os
         key = api_key or os.getenv("GROQ_API_KEY")
-        if not key:
-            print("⚠️ Skipping Llama Guard 3: GROQ_API_KEY not found in .env")
+        if not key or "PASTE_YOUR_KEY_HERE" in key:
             return True # Fail open if no key, so the app doesn't crash
             
         import requests
@@ -86,8 +88,6 @@ class AIHiringGuardrails:
             "Content-Type": "application/json"
         }
         
-        # Groq automatically formats the Llama Guard 3 prompt 
-        # when calling 'llama-guard-3-8b'
         data = {
             "model": "llama-guard-3-8b",
             "messages": [
@@ -96,7 +96,7 @@ class AIHiringGuardrails:
         }
         
         try:
-            response = requests.post(url, headers=headers, json=data)
+            response = requests.post(url, headers=headers, json=data, timeout=10)
             if response.status_code == 200:
                 result = response.json()
                 classification = result["choices"][0]["message"]["content"].strip().lower()
@@ -104,11 +104,11 @@ class AIHiringGuardrails:
                 if "unsafe" in classification:
                     raise HTTPException(
                         status_code=403, 
-                        detail=f"🛡️ Llama Guard 3 Blocked: Content categorized as unsafe by Meta's Safety Taxonomy. Output: {classification}"
+                        detail=f"Llama Guard 3 Blocked: Content categorized as unsafe by Meta's Safety Taxonomy. Output: {classification}"
                     )
             return True
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
-            print(f"Llama Guard 3 API error: {e}")
+            print(f"[GUARDRAIL WARNING] Llama Guard 3 API check bypassed: {e}")
             return True
