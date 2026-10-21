@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Rocket, 
@@ -12,7 +12,10 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://smart-hire-1-r5o4.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:8000'
+    : 'https://smart-hire-1-r5o4.onrender.com');
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('analysis');
@@ -23,6 +26,7 @@ export default function App() {
   const [candidateEmail, setCandidateEmail] = useState('');
   const [resumeFile, setResumeFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
   const [hasResult, setHasResult] = useState(false);
   const [reportData, setReportData] = useState('');
 
@@ -39,10 +43,16 @@ export default function App() {
   const fileInputRef = useRef(null);
   const jdFileInputRef = useRef(null);
 
+  // Proactively warm up backend if hosted on free-tier Render (prevents cold-start delays)
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/health`).catch(() => {});
+  }, []);
+
   const loadVault = async () => {
     setIsLoadingVault(true);
     try {
       const response = await fetch(`${API_BASE_URL}/vault`);
+      if (!response.ok) return;
       const data = await response.json();
       if (data && data.ids) {
         const list = data.ids.map((id, index) => ({
@@ -72,15 +82,25 @@ export default function App() {
           role: jobDescFile ? jobDescFile.name : 'Selected Role'
         })
       });
+      if (!response.ok) {
+        let errDetail = `HTTP ${response.status}`;
+        try {
+          const errJson = await response.json();
+          errDetail = errJson.detail || errJson.message || errDetail;
+        } catch {}
+        alert("Error saving to vault: " + errDetail);
+        return;
+      }
       const data = await response.json();
       if (data.status === 'success') {
         alert("Successfully saved strategic candidate dossier to the Resume Vault!");
         loadVault();
       } else {
-        alert("Error saving to vault: " + data.message);
+        alert("Error saving to vault: " + (data.message || "Unknown error"));
       }
     } catch (e) {
-      alert("Failed to connect to API");
+      console.error("Save to vault error:", e);
+      alert(`Failed to connect to API at ${API_BASE_URL}: ${e.message}`);
     } finally {
       setIsSavingToVault(false);
     }
@@ -96,29 +116,112 @@ export default function App() {
   const handleProcess = async () => {
     if (!jobDescFile || !resumeFile) return alert("Please provide both a Job Description file and a Resume");
     setIsProcessing(true);
+    setProcessingStatus("Initializing pipeline & connecting to AI Engine...");
     
     try {
       const formData = new FormData();
       formData.append('job_desc', jobDescFile);
       formData.append('email', candidateEmail || 'candidate@example.com');
       formData.append('resume', resumeFile);
+      formData.append('async_mode', 'true');
 
-      const response = await fetch(`${API_BASE_URL}/analyze`, {
-        method: 'POST',
-        body: formData,
-      });
+      let response;
+      let attempts = 0;
+      const maxAttempts = 2;
+
+      while (attempts < maxAttempts) {
+        try {
+          response = await fetch(`${API_BASE_URL}/analyze`, {
+            method: 'POST',
+            body: formData,
+          });
+          break;
+        } catch (fetchErr) {
+          attempts++;
+          if (attempts < maxAttempts) {
+            setProcessingStatus("Backend instance is waking up (Render cold-start)... retrying...");
+            await new Promise(r => setTimeout(r, 4000));
+          } else {
+            throw fetchErr;
+          }
+        }
+      }
+
+      if (!response.ok) {
+        let errDetail = `Server error (${response.status})`;
+        try {
+          const errJson = await response.json();
+          if (errJson && (errJson.detail || errJson.message)) {
+            errDetail = errJson.detail || errJson.message;
+          }
+        } catch {}
+        alert("Processing Error: " + errDetail);
+        return;
+      }
       
       const data = await response.json();
-      if (data.status === 'success') {
+
+      // Case 1: Job was queued asynchronously (prevents gateway/browser timeouts)
+      if (data.status === 'queued' && data.job_id) {
+        const jobId = data.job_id;
+        const statusSteps = [
+          'Auditing security guardrails & redacting PII...',
+          'Evaluating technical skills against knowledge graph...',
+          'Auditing decision fairness & bias metrics...',
+          'Assessing market compensation & candidate fit...',
+          'Synthesizing final executive hiring dossier...'
+        ];
+        let stepIdx = 0;
+        let completed = false;
+        const maxPolls = 100;
+        let pollCount = 0;
+
+        while (!completed && pollCount < maxPolls) {
+          pollCount++;
+          await new Promise(r => setTimeout(r, 2500));
+          
+          if (stepIdx < statusSteps.length - 1 && pollCount % 4 === 0) {
+            stepIdx++;
+          }
+          setProcessingStatus(statusSteps[stepIdx]);
+
+          try {
+            const statusRes = await fetch(`${API_BASE_URL}/analyze/status/${jobId}`);
+            if (statusRes.ok) {
+              const statusData = await statusRes.json();
+              if (statusData.status === 'completed') {
+                setReportData(statusData.result);
+                setHasResult(true);
+                completed = true;
+                break;
+              } else if (statusData.status === 'failed') {
+                alert("Analysis Error: " + (statusData.error || "Processing failed."));
+                completed = true;
+                break;
+              }
+            }
+          } catch (pollErr) {
+            console.warn("Poll attempt transient error:", pollErr);
+          }
+        }
+
+        if (!completed) {
+          alert("The analysis is still processing. Please check back shortly.");
+        }
+      } 
+      // Case 2: Direct synchronous response (fallback)
+      else if (data.status === 'success') {
         setReportData(data.result);
         setHasResult(true);
       } else {
-        alert("Error: " + data.message);
+        alert("Error: " + (data.message || "Failed to process candidate."));
       }
     } catch (e) {
-      alert("Failed to connect to API");
+      console.error("Failed to connect to API:", e);
+      alert(`Connection Error (${API_BASE_URL}):\n${e.message || "Unable to reach server"}\n\nNote: If the backend was asleep, it may take 20-30 seconds to wake up. Please click again to retry.`);
     } finally {
       setIsProcessing(false);
+      setProcessingStatus('');
     }
   };
 
@@ -134,10 +237,14 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: chatInput, context: reportData })
       });
+      if (!response.ok) {
+        throw new Error(`Server returned HTTP ${response.status}`);
+      }
       const data = await response.json();
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
     } catch (e) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error while communicating with AI.' }]);
+      console.error("Chat API error:", e);
+      setMessages(prev => [...prev, { role: 'assistant', content: `Connection error with AI (${API_BASE_URL}): ${e.message}` }]);
     }
   };
 
@@ -338,20 +445,24 @@ export default function App() {
 
                   <button 
                     className="glass-button" 
-                    style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}
+                    style={{ width: '100%', padding: '1rem', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}
                     onClick={handleProcess}
                     disabled={isProcessing}
                   >
                     {isProcessing ? (
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                      >
-                        <BrainCircuit size={24} />
-                      </motion.div>
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                          style={{ display: 'inline-flex' }}
+                        >
+                          <BrainCircuit size={22} />
+                        </motion.div>
+                        <span style={{ fontSize: '0.95rem' }}>{processingStatus || 'Analyzing Candidate...'}</span>
+                      </>
                     ) : (
                       <>
-                        <BrainCircuit size={24} /> Run Intelligence Engine
+                        <BrainCircuit size={22} /> Run Intelligence Engine
                       </>
                     )}
                   </button>

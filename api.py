@@ -106,13 +106,23 @@ async def analyze_candidate(
         with open(temp_resume_path, "wb") as buffer:
             shutil.copyfileobj(resume.file, buffer)
             
-        resume_text = extract_text_from_pdf(temp_resume_path)
+        if temp_resume_path.lower().endswith('.pdf'):
+            resume_text = extract_text_from_pdf(temp_resume_path)
+            if not resume_text or resume_text.startswith("Error:"):
+                with open(temp_resume_path, "r", encoding="utf-8", errors="replace") as f:
+                    resume_text = f.read()
+        else:
+            with open(temp_resume_path, "r", encoding="utf-8", errors="replace") as f:
+                resume_text = f.read()
         
         with open(temp_jd_path, "wb") as buffer:
             shutil.copyfileobj(job_desc.file, buffer)
             
         if temp_jd_path.lower().endswith('.pdf'):
             job_desc_text = extract_text_from_pdf(temp_jd_path)
+            if not job_desc_text or job_desc_text.startswith("Error:"):
+                with open(temp_jd_path, "r", encoding="utf-8", errors="replace") as f:
+                    job_desc_text = f.read()
         else:
             with open(temp_jd_path, "r", encoding="utf-8", errors="replace") as f:
                 job_desc_text = f.read()
@@ -122,9 +132,13 @@ async def analyze_candidate(
                 shutil.copyfileobj(video.file, buffer)
         
         # --- INPUT GUARDRAILS ---
-        AIHiringGuardrails.detect_prompt_injections(resume_text)
-        AIHiringGuardrails.detect_prompt_injections(job_desc_text)
-        AIHiringGuardrails.llama_guard_check(resume_text)
+        try:
+            AIHiringGuardrails.detect_prompt_injections(resume_text)
+            AIHiringGuardrails.detect_prompt_injections(job_desc_text)
+            AIHiringGuardrails.llama_guard_check(resume_text)
+        except Exception as e:
+            detail = getattr(e, 'detail', str(e))
+            return {"status": "error", "message": f"Security Guardrail: {detail}"}
         
         # Privacy Guardrail: Redact PII before sending to agents
         safe_resume_text = AIHiringGuardrails.redact_pii(resume_text)
