@@ -1,10 +1,12 @@
 import os
 import sys
+# pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
 
 # Disable CrewAI telemetry immediately
 os.environ["CREWAI_DISABLE_TELEMETRY"] = "true"
 
+# pyrefly: ignore [missing-import]
 from crewai import LLM
 
 # Load environment variables from .env file

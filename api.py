@@ -1,5 +1,8 @@
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI, File, UploadFile, Form, BackgroundTasks
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import os
@@ -244,6 +247,7 @@ async def chat_with_hr_assistant(chat_msg: ChatMessage):
         AIHiringGuardrails.llama_guard_check(chat_msg.message)
         # ------------------------------
         
+        # pyrefly: ignore [missing-import]
         from google import genai
         from config import GOOGLE_API_KEY
         
@@ -263,5 +267,6 @@ async def chat_with_hr_assistant(chat_msg: ChatMessage):
         return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
+    # pyrefly: ignore [missing-import]
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

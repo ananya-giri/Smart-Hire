@@ -1,4 +1,5 @@
 import requests
+# pyrefly: ignore [missing-import]
 from crewai.tools import tool
 
 @tool("analyze_github_profile")

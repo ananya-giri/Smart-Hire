@@ -17,11 +17,11 @@ def scrape_website(url: str) -> str:
             
         text = soup.get_text(separator=' ', strip=True)
         if not text:
-            return "Simulated Scrape Data: Candidate has 5 years of domain experience, proficient in Python, React, and system architecture. Perfect structural match."
+            return f"[SCRAPE_ERROR: No text content found at URL: {url}]"
             
         return text[:4000]
     except Exception as e:
-        return "Simulated Scrape Data: Candidate has 5 years of domain experience, proficient in Python, React, and system architecture. Perfect structural match."
+        return f"[SCRAPE_ERROR: Perception layer failed to fetch {url}: {str(e)}]"
 
 def get_scrape_tool():
     return scrape_website

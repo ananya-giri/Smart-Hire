@@ -1,5 +1,6 @@
 import networkx as nx
 from typing import Optional, Union, List
+# pyrefly: ignore [missing-import]
 from crewai.tools import tool
 
 # Common tech alias mappings for robust normalization
@@ -71,8 +72,8 @@ def build_tech_graph() -> nx.Graph:
     G.add_edge("JavaScript", "Vue", weight=1)
     G.add_edge("Vue", "Nuxt", weight=1)
     G.add_edge("TypeScript", "Angular", weight=1)
-    G.add_edge("Frontend", "HTML5", weight=1)
-    G.add_edge("Frontend", "CSS3", weight=1)
+    G.add_edge("Frontend", "HTML5", weight=2)
+    G.add_edge("Frontend", "CSS3", weight=2)
     G.add_edge("CSS3", "TailwindCSS", weight=1)
     G.add_edge("React", "Redux", weight=1)
     G.add_edge("React", "Zustand", weight=1)
@@ -119,7 +120,7 @@ def build_tech_graph() -> nx.Graph:
     G.add_edge("Database", "MongoDB", weight=1)
     G.add_edge("Database", "Redis", weight=1)
     G.add_edge("Database", "Snowflake", weight=1)
-    G.add_edge("Backend", "Database", weight=1)
+    G.add_edge("Backend", "Database", weight=2)
     G.add_edge("Backend", "Kafka", weight=1)
     G.add_edge("Backend", "RabbitMQ", weight=1)
     
@@ -141,11 +142,11 @@ def build_tech_graph() -> nx.Graph:
     G.add_edge("Data Engineering", "Airflow", weight=1)
     G.add_edge("Data Engineering", "Python", weight=1)
     
-    # Cross-domain bridges
-    G.add_edge("Frontend", "Backend", weight=2)
-    G.add_edge("Backend", "Cloud", weight=1)
-    G.add_edge("Cloud", "DevOps", weight=1)
-    G.add_edge("Backend", "Data Engineering", weight=2)
+    # Cross-domain bridges (weighted heavily to prevent generic domain shortcuts)
+    G.add_edge("Frontend", "Backend", weight=5)
+    G.add_edge("Backend", "Cloud", weight=4)
+    G.add_edge("Cloud", "DevOps", weight=3)
+    G.add_edge("Backend", "Data Engineering", weight=4)
 
     return G
 
@@ -170,13 +171,24 @@ def _normalize_skill_name(skill_str: str, graph_nodes: set) -> str:
             
     return s
 
-@tool("semantic_skill_graph_matcher")
-def semantic_skill_graph_matcher(required_skill: str, candidate_skills_csv: str) -> str:
-    """Useful to mathematically measure the distance between a required job skill and a candidate's actual skills using a Neuro-Symbolic Knowledge Graph.
-    Pass the required_skill and a comma-separated list of candidate_skills. 
-    It returns if there is a latent mathematical semantic connection."""
+def evaluate_skill_match(required_skill: str, candidate_skills: Union[str, List[str]]) -> dict:
+    """
+    Evaluates skill match using weighted shortest path on the curated tech graph.
+    Returns structured decision dictionary with:
+      - match_type: EXACT | ALIAS | DIRECT_SUBSUMPTION | TRANSFERABLE | DISTANT_PROXIMITY | GAP | UNMAPPED
+      - weighted_distance: float (0.0 for exact/alias, inf for gap/no path)
+      - closest_skill: str
+      - is_approved: bool (True only for exact, alias, and distance <= 2)
+      - details: str
+    """
     if not required_skill or not str(required_skill).strip():
-        return "Error: required_skill cannot be empty."
+        return {
+            "match_type": "ERROR",
+            "weighted_distance": float('inf'),
+            "closest_skill": None,
+            "is_approved": False,
+            "details": "Error: required_skill cannot be empty."
+        }
 
     G = _GLOBAL_TECH_GRAPH
     graph_nodes = set(G.nodes)
@@ -185,23 +197,54 @@ def semantic_skill_graph_matcher(required_skill: str, candidate_skills_csv: str)
     req_mapped = _normalize_skill_name(req_clean, graph_nodes)
     
     # Parse candidate skills
-    if not candidate_skills_csv:
+    if not candidate_skills:
         candidate_skills_list = []
-    elif isinstance(candidate_skills_csv, list):
-        candidate_skills_list = [str(x).strip() for x in candidate_skills_csv if str(x).strip()]
+    elif isinstance(candidate_skills, list):
+        candidate_skills_list = [str(x).strip() for x in candidate_skills if str(x).strip()]
     else:
-        candidate_skills_list = [s.strip() for s in str(candidate_skills_csv).replace(";", ",").replace("\n", ",").split(",") if s.strip()]
+        candidate_skills_list = [s.strip() for s in str(candidate_skills).replace(";", ",").replace("\n", ",").split(",") if s.strip()]
     
     if not candidate_skills_list:
-        return f"No candidate skills provided. Cannot match '{req_clean}'."
+        return {
+            "match_type": "GAP",
+            "weighted_distance": float('inf'),
+            "closest_skill": None,
+            "is_approved": False,
+            "details": f"No candidate skills provided. Cannot match '{req_clean}'."
+        }
 
-    # Check graph for the requirement
+    # 1. Exact textual match check
+    for c_skill in candidate_skills_list:
+        if c_skill.lower() == req_clean.lower():
+            return {
+                "match_type": "EXACT",
+                "weighted_distance": 0.0,
+                "closest_skill": req_clean,
+                "is_approved": True,
+                "details": f"Exact Explicit Match found for '{req_clean}'."
+            }
+
+    # 2. Alias resolution check
+    for c_skill in candidate_skills_list:
+        c_mapped = _normalize_skill_name(c_skill, graph_nodes)
+        if c_mapped.lower() == req_mapped.lower() and c_mapped != c_skill:
+            return {
+                "match_type": "ALIAS",
+                "weighted_distance": 0.0,
+                "closest_skill": c_skill,
+                "is_approved": True,
+                "details": f"Alias resolved: '{c_skill}' maps directly to canonical '{req_mapped}'."
+            }
+
+    # 3. Graph availability check
     if req_mapped not in G:
-        # Check if candidate has an exact string match despite not being in graph
-        for c_skill in candidate_skills_list:
-            if c_skill.lower() == req_clean.lower():
-                return f"Exact Explicit Match found for '{req_clean}' (textual match)."
-        return f"Skill '{req_clean}' is specialized or not mapped in standard generic graph. LLM must use native contextual reasoning."
+        return {
+            "match_type": "UNMAPPED",
+            "weighted_distance": float('inf'),
+            "closest_skill": None,
+            "is_approved": False,
+            "details": f"Skill '{req_clean}' is specialized or not mapped in standard generic graph. LLM must use native contextual reasoning."
+        }
     
     closest_skill = None
     min_dist = float('inf')
@@ -210,24 +253,62 @@ def semantic_skill_graph_matcher(required_skill: str, candidate_skills_csv: str)
         skill_mapped = _normalize_skill_name(skill, graph_nodes)
         if skill_mapped in G:
             try:
-                dist = nx.shortest_path_length(G, source=req_mapped, target=skill_mapped)
+                # Use Dijkstra weighted shortest path length
+                dist = nx.shortest_path_length(G, source=req_mapped, target=skill_mapped, weight='weight')
                 if dist < min_dist:
                     min_dist = dist
                     closest_skill = skill_mapped
             except nx.NetworkXNoPath:
                 pass
-        elif skill.lower() == req_clean.lower():
-            min_dist = 0
-            closest_skill = req_mapped
                 
     if min_dist == 0:
-        return f"Exact Explicit Match found for '{req_clean}'."
-    elif min_dist <= 2:
-        return f"Latent Neuro-Symbolic match found: Candidate lacks explicit '{req_clean}', but has '{closest_skill}' which is mathematically related in the knowledge graph (Graph Path Distance: {min_dist}). Approve skill."
-    elif min_dist <= 3:
-        return f"Moderate Domain proximity found between '{req_clean}' and candidate's skill '{closest_skill}' (Graph Path Distance: {min_dist}). Partially transferable skill."
+        return {
+            "match_type": "EXACT",
+            "weighted_distance": 0.0,
+            "closest_skill": closest_skill,
+            "is_approved": True,
+            "details": f"Exact Explicit Match found for '{req_clean}'."
+        }
+    elif min_dist == 1:
+        return {
+            "match_type": "DIRECT_SUBSUMPTION",
+            "weighted_distance": min_dist,
+            "closest_skill": closest_skill,
+            "is_approved": True,
+            "details": f"Latent Neuro-Symbolic match found: Candidate lacks explicit '{req_clean}', but has '{closest_skill}' which is directly coupled in the knowledge graph (Weighted Distance: {min_dist}). Approve skill."
+        }
+    elif min_dist == 2:
+        return {
+            "match_type": "TRANSFERABLE",
+            "weighted_distance": min_dist,
+            "closest_skill": closest_skill,
+            "is_approved": True,
+            "details": f"Transferable skill match found: Candidate has '{closest_skill}', an adjacent stack technology to '{req_clean}' (Weighted Distance: {min_dist}). Approve skill."
+        }
+    elif min_dist == 3:
+        return {
+            "match_type": "DISTANT_PROXIMITY",
+            "weighted_distance": min_dist,
+            "closest_skill": closest_skill,
+            "is_approved": False,
+            "details": f"Moderate Domain proximity found between '{req_clean}' and candidate's skill '{closest_skill}' (Weighted Distance: {min_dist}). Flagged for technical interview assessment; not automatically approved."
+        }
     else:
-        return f"No close semantic connection found in the skill network for '{req_clean}'. Flag as a gap."
+        return {
+            "match_type": "GAP",
+            "weighted_distance": min_dist,
+            "closest_skill": closest_skill,
+            "is_approved": False,
+            "details": f"No close semantic connection found in the skill network for '{req_clean}' (Weighted Distance: {min_dist}). Flag as a gap."
+        }
+
+@tool("semantic_skill_graph_matcher")
+def semantic_skill_graph_matcher(required_skill: str, candidate_skills_csv: str) -> str:
+    """Useful to mathematically measure the distance between a required job skill and a candidate's actual skills using a Neuro-Symbolic Knowledge Graph.
+    Pass the required_skill and a comma-separated list of candidate_skills. 
+    It returns if there is a latent mathematical semantic connection."""
+    res = evaluate_skill_match(required_skill, candidate_skills_csv)
+    return res["details"]
 
 def get_kg_tool():
     return semantic_skill_graph_matcher
