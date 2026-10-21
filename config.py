@@ -20,26 +20,26 @@ if GOOGLE_API_KEY:
     os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
     os.environ["GEMINI_API_KEY"] = GOOGLE_API_KEY
 
-USE_GROQ = os.getenv("USE_GROQ", "true").lower() == "true"
+USE_GROQ = os.getenv("USE_GROQ", "false").lower() == "true"
 
 is_valid_groq = bool(GROQ_API_KEY and not any(x in GROQ_API_KEY for x in ["your_groq_api_key_here", "PASTE_YOUR_KEY_HERE"]))
 is_valid_google = bool(GOOGLE_API_KEY and not any(x in GOOGLE_API_KEY for x in ["your_gemini_api_key_here", "PASTE_YOUR_KEY_HERE"]))
 
-if is_valid_groq and USE_GROQ:
+if is_valid_google and not USE_GROQ:
+    llm = LLM(
+        model="gemini/gemini-flash-lite-latest",
+        temperature=0.3,
+        api_key=GOOGLE_API_KEY
+    )
+    print("[LLM CONFIG] Smart Hire configured to use Gemini LLM (gemini-flash-lite-latest).")
+elif is_valid_groq:
     os.environ["GROQ_API_KEY"] = GROQ_API_KEY
     llm = LLM(
-        model="groq/qwen/qwen3.8-27b",
+        model="groq/openai/gpt-oss-120b",
         temperature=0.3,
         api_key=GROQ_API_KEY
     )
-    print("[LLM CONFIG] Smart Hire configured to use high-speed Groq LLM (qwen/qwen3.8-27b).")
-elif is_valid_google:
-    llm = LLM(
-        model="gemini/gemini-flash-latest",
-        temperature=0.4,
-        api_key=GOOGLE_API_KEY
-    )
-    print("[LLM CONFIG] Smart Hire configured to use Gemini LLM (gemini-flash-latest).")
+    print("[LLM CONFIG] Smart Hire configured to use Groq LLM (openai/gpt-oss-120b).")
 else:
     print("\n[WARNING] Valid GOOGLE_API_KEY or GROQ_API_KEY not found in environment/.env.")
     print("Running with default Gemini Flash configuration. Please provide a valid key before executing live inferences.")

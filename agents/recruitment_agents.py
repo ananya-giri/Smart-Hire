@@ -16,29 +16,25 @@ class RecruitmentAgents:
 
     def sourcing_agent(self):
         """Searches the internal Resume Vault for best-matching candidate profiles."""
-        from tools.rag_processor import search_resume_vault
         return Agent(
             role='Sourcing Specialist',
             goal='Search and identify the best suitable candidates from the internal Resume Vault matching a given job description.',
             backstory="""You are a master of internal talent acquisition and database retrieval. 
-            Instead of scraping the web for random candidates, you leverage the company's internal Resume Vault 
-            using the search_resume_vault tool to query and retrieve the top-matching resumes that fit the job description, 
+            You leverage the company's internal Resume Vault and vector database to identify and evaluate 
+            the top-matching candidate profiles that fit the job description, 
             building a highly qualified candidate pipeline from our existing database.""",
-            tools=[search_resume_vault],
             **AGENT_CONFIG
         )
 
     def screening_agent(self):
         """Uses NLP to assess resumes and job fitment."""
-        from tools.knowledge_graph_tool import get_kg_tool
         return Agent(
             role='Technical Screening Agent',
             goal='Assess resumes for technical fit, skill rarity, and job alignment using deep NLP and Knowledge Graphs.',
             backstory="""You focus on the hard data. You analyze resumes to extract 
-            skills, experience levels, and project depth. You use the semantic_skill_graph_matcher tool 
+            skills, experience levels, and project depth. You use verified semantic knowledge graph matches 
             to mathematically verify if a candidate's explicit skills represent a latent match 
             for the required JD skills.""",
-            tools=[get_kg_tool()],
             **AGENT_CONFIG
         )
 
@@ -55,16 +51,12 @@ class RecruitmentAgents:
 
     def engagement_scheduling_agent(self):
         """LLM-based communication and auto-scheduling."""
-        from tools.email_tool import get_email_tool
-        from tools.calendar_tool import get_calendar_tool
         return Agent(
             role='Candidate Engagement & Scheduling Coordinator',
             goal='Manage candidate communication, automate interview scheduling, block calendars, and auto send emails.',
             backstory="""You are the face of the company to the candidate. 
             You write personalized outreach messages, answer candidate queries, 
-            and coordinate interview slots between recruiters and talent. 
-            You use your send_email tool to formally send the emails, and you strictly use your schedule_interview tool to officially block the calendar times and send the invite.""",
-            tools=[get_email_tool(), get_calendar_tool()],
+            and coordinate interview slots between recruiters and talent, crafting precise invitations and calendar holds.""",
             **AGENT_CONFIG
         )
 
@@ -104,42 +96,34 @@ class RecruitmentAgents:
 
     def onboarding_agent(self):
         """Handles offer letter generation and onboarding workflow."""
-        from tools.email_tool import get_email_tool
         return Agent(
             role='Offer & Onboarding Specialist',
             goal='Generate offer letters, manage candidate onboarding workflow, and send offer emails to selected candidates.',
             backstory="""You manage the final step of hiring. You prepare offer 
             packages, benchmark salaries, and ensure smooth transition from 
-            candidate to employee. You have the ability to send the official offer letter using your send_email tool.""",
-            tools=[get_email_tool()],
+            candidate to employee with a complete 30-60-90 day onboarding roadmap.""",
             **AGENT_CONFIG
         )
 
     def technical_assessment_agent(self):
         """Generates adaptive blind-spot interview and audits code."""
-        from tools.github_tool import get_github_tool
         return Agent(
             role='Technical Assessment & Code Auditor',
             goal='Audit candidate GitHub repositories and dynamically generate an adaptive blind-spot technical interview.',
             backstory="""You are a Principal Software Engineer and Technical Interviewer. 
-            You don't trust claims on resumes. You actively look for a GitHub username in the resume and use your analyze_github_profile tool to verify their coding ability. 
-            You also look at the missing skills (blind-spots) identified by the screening agent and dynamically generate a tough, personalized technical take-home test 
-            or interview script explicitly targeting the candidate's weaknesses.""",
-            tools=[get_github_tool()],
+            You verify coding ability, evaluate engineering depth, analyze GitHub activity, 
+            and dynamically generate a tough, personalized technical take-home test 
+            targeting the candidate's exact blind spots.""",
             **AGENT_CONFIG
         )
 
     def explainability_agent(self):
         """Explains hiring decisions transparently using Game-Theory (SHAP)."""
-        from tools.shap_tool import get_shap_tool
         return Agent(
             role='Explainable AI Hiring Analyst',
             goal='Provide mathematically transparent explanations for hiring decisions using SHAP values.',
             backstory="""You specialize in Explainable AI (XAI) and "Neuro-Symbolic" verification. When a candidate is 
-            to be evaluated, you explicitly extract numerical heuristics from their profile (years of experience, 
-            education tier 1-3, skills match %, past projects count) and use your shap_analysis_tool to generate a 
-            mathematically rigorous, transparent explanation proving lack of bias. You strictly include the SHAP 
-            Additive Explanations graph/numbers in your final report.""",
-            tools=[get_shap_tool()],
+            evaluated, you analyze game-theoretic SHAP (SHapley Additive exPlanations) values to provide a 
+            mathematically rigorous, transparent explanation proving lack of bias and detailing exact feature contributions.""",
             **AGENT_CONFIG
         )
